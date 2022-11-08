@@ -1,0 +1,649 @@
+#!/usr/bin/env python3
+
+""" Post Meetup reminders in Slack """
+
+from __future__ import print_function
+import argparse
+import datetime
+import json
+import logging
+import os
+import smtplib
+import sys
+
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+"XXX - Make a Slack App: https://api.slack.com/slack-apps"
+"XXX - Add class for config data"
+"XXX - Display @here for TODAY?"
+
+"Message formating: https://api.slack.com/docs/message-formatting"
+"Building Slack Apps: https://api.slack.com/slack-apps"
+"Getting events list: https://www.meetup.com/meetup_api/docs/:urlname/events/#list"
+
+try:
+    import yaml
+except ImportError as error:
+    sys.exit(error)
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+    
+try:
+    import requests
+    import requests.exceptions
+except ImportError:
+    print("Python requests library is required to run this script")
+    sys.exit(1)
+
+import slack_sdk
+
+MEETUP_API_URL = "https://api.meetup.com"
+MEETUP_URL = "https://www.meetup.com"
+NOTIFY_TYPES = {
+    'week': {
+        'text': "this week",
+        'suffix': "this week",
+    },
+    'tomorrow': {
+        'suffix': "tomorrow"
+    },
+    'today': {
+        'suffix': "*today*"
+    },
+    'hour': {
+        'suffix': "starting *soon*"
+    },
+    'updated': {
+        'prefix': 'updated'
+    },
+    'new': {
+        'prefix': 'new'
+    }
+}
+
+def parse_args():
+    """ Parse args """
+
+    parser = argparse.ArgumentParser(description="Post Meetup reminders in slack")
+
+    #	Debugging
+    group = parser.add_argument_group("Debugging options")
+    group.add_argument("-d", "--debug",
+                       dest="debug", default=False,
+                       action='store_true',
+                       help="print debugging messages")
+    group.add_argument("--nodebug",
+                       dest="debug",
+                       action='store_false',
+                       help="print debugging messages")
+    group.add_argument("-v", "--verbose",
+                       dest="verbose", default=False,
+                       action='store_true',
+                       help="print verbose messages")
+    group.add_argument("-n", "--noop",
+                       dest="noop", default=False,
+                       action='store_true',
+                       help="Don't make changes, just list what we are going to do")
+    group.add_argument("--test",
+                       dest="test", default=False,
+                       action='store_true',
+                       help="Test sending e-mail to fromaddr")
+
+    #	Options
+    group = parser.add_argument_group("Config Options")
+    group.add_argument("--config",
+                       dest="config", default="/config/meetup_slack.yml",
+                       help="Config file")
+    group.add_argument("--statusdb",
+                       dest="statusdb", default="/config/meetup_slack.db",
+                       help="DB where we store state")
+    group.add_argument("--noload",
+                       dest="load", action="store_false", default=True,
+                       help="Ignore the status db")
+    group.add_argument("--ahead_hour",
+                       dest="ahead_hour", default=18, type=int,
+                       help="The hour (0-24) in which to notify about events this week and tomorrow")
+    group.add_argument("--today_hour",
+                       dest="today_hour", default=8, type=int,
+                       help="The hour (0-24) in which to notify about events today")
+    options = parser.parse_args()
+
+    if options.debug:
+        options.verbose = options.debug
+
+    return (parser, options)
+
+def init_logging(options):
+    """ Set up logging """
+
+    logger = logging.getLogger()
+    logger.handlers = []
+    logger.addHandler(logging.StreamHandler())
+    if options.debug:
+        logger.setLevel('DEBUG')
+    elif options.verbose:
+        logger.setLevel('INFO')
+    else:
+        logger.setLevel('WARNING')
+
+    return logger
+
+class EventStatus(object):
+    """ Store prior status of event by id """
+
+    def __init__(self, id, last_updated, time, duration, venue_id):
+        self._id = id
+        self._last_updated = last_updated
+        self._notice = {}
+        self._start_time = time
+        self._end_time = time + duration
+        self._venue_id = venue_id
+
+        for notify_type in NOTIFY_TYPES:
+            self._notice[notify_type] = None
+    
+    @property
+    def id(self):
+        return self._id
+
+    def updated(self, last_updated, time, duration, venue_id):
+        """ Return what has changed """
+
+        result = set()
+
+        if self._last_updated == last_updated:
+            return result
+
+        start_time = time
+        end_time = time + duration
+
+        if self._start_time != start_time and self._end_time != end_time:
+            result.add('time changed')
+        else:
+            if self._start_time != start_time:
+                result.add('start time changed')
+            elif self._end_time != end_time:
+                result.add('end time changed')
+        if self._venue_id != venue_id:
+            if venue_id:
+                result.add('Venue added')
+            else:
+                result.add('Venue removed')
+
+        self._start_time = start_time
+        self._end_time = end_time
+        self._venue_id = venue_id
+        self._last_updated = last_updated
+            
+        return result
+
+    def notify(self, notify_type):
+        """ Notify that we have alerted for this type """
+        self._notice[notify_type] = datetime.date.today
+
+    def notified(self, notify_type):
+        """ Indicate if we have notified for the given type today """
+        if self._notice[notify_type] and self._notice[notify_type] == datetime.date.today:
+            return True
+        return False
+
+    def __repr__(self):
+        """ Print it """
+
+        return "EventStatus(%s, %s, %s, %s, %s)" % (
+            self._id,
+            self._last_updated,
+            self._start_time,
+            self._end_time - self._start_time,
+            self._venue_id
+        )
+
+    def __str__(self):
+        """ Print it """
+
+        return "Event %s last_updated %s start %s end %s venue %s" % (
+            self._id,
+            self._last_updated,
+            self._start_time,
+            self._end_time,
+            self._venue_id,
+            )
+
+class Event(object):
+    """ Event from Meetup """
+
+    def __init__(self, data):
+        self._data = data
+
+    def __getattr__(self, attr):
+        """ Get event attributes """
+
+        if attr in self._data:
+            return self._data[attr]
+
+        return None
+
+    @property
+    def time(self):
+        """ Return event time in sec """
+        return int(self._data['time']) / 1000
+
+    @property
+    def utc_offset(self):
+        """ Return event time in sec """
+        return int(self._data['utc_offset']) / 1000
+
+    @property
+    def duration(self):
+        """ Return duration in sec """
+        return int(self._data['duration']) / 1000
+
+    @property
+    def updated(self):
+        """ Return updated in sec """
+        return int(self._data['updated']) / 1000
+
+    @property
+    def meeting_day(self):
+        """ Return pretty meeting day """
+
+        meeting_date = datetime.date.fromtimestamp(self.time)
+        if meeting_date == datetime.date.today:
+            return "Today"
+
+        return meeting_date.strftime("%A %b %e")
+
+    @property
+    def datetime(self):
+        """ Return start time as a datetime """
+        return datetime.datetime.fromtimestamp(self.time)
+
+    @property
+    def start_time(self):
+        """ Return pretty meering start """
+        return self.datetime.strftime("%l:%M %p").strip()
+
+    @property
+    def end_time(self):
+        """ Return pretty meeting end time """
+        return  datetime.datetime.fromtimestamp(self.time + self.duration).strftime("%l:%M %p").strip()
+
+    @property
+    def venue_id(self):
+        """ Return venue_id """
+
+        if 'venue' not in self._data:
+            return None
+
+        return self._data['venue']['id']
+
+    @property
+    def venue_slack(self):
+        """ Return the venue formated for slack """
+
+        if 'venue' not in self._data:
+            return None
+        venue = self._data['venue']
+
+        url = None
+        location = []
+        if 'name' in venue:
+            location.append(venue['name'])
+            if self.is_online_event and 'how_to_find_us' in self._data:
+                url = self._data['how_to_find_us'].strip()
+            else:
+                if 'address_1' in venue:
+                    location.append(venue['address_1'])
+                    if 'address_2' in venue:
+                        location.append(venue['address_2'])
+                    if 'address_3' in venue:
+                        location.append(venue['address_3'])
+                location.append("%s, %s  %s" % (
+                    venue.get('city', ''),
+                    venue.get('state', '').upper(),
+                    venue.get('zip', '')))
+
+                if 'lat' in venue and 'lon' in venue:
+                    url = "https://www.google.com/maps/dir/?api=1&destination=%s,%s" % (venue['lat'], venue['lon'])
+
+        if url:
+            return "<%s|%s>" % (url, "; ".join(location))
+
+        return "; ".join(location)
+
+    @property
+    def venue_html(self):
+        """ Return the venue formated for slack """
+
+        if 'venue' not in self._data:
+            return None
+        venue = self._data['venue']
+
+        url = None
+        location = []
+        if 'name' in venue:
+            location.append(venue['name'])
+            if self.is_online_event and 'how_to_find_us' in self._data:
+                url = self._data['how_to_find_us']
+            else:
+                if 'address_1' in venue:
+                    location.append(venue['address_1'])
+                    if 'address_2' in venue:
+                        location.append(venue['address_2'])
+                    if 'address_3' in venue:
+                        location.append(venue['address_3'])
+                location.append("%s, %s  %s" % (
+                    venue.get('city', ''),
+                    venue.get('state', '').upper(),
+                    venue.get('zip', '')))
+
+                if 'lat' in venue and 'lon' in venue:
+                    url = "https://www.google.com/maps/dir/?api=1&destination=%s,%s" % (venue['lat'], venue['lon'])
+
+        if url:
+            return '<a href="%s">%s</a>' % (url, "; ".join(location))
+
+        return "; ".join(location)
+    
+
+def get_events(logger, group, no_earlier_than):
+    """ Query Meetup for events """
+
+    url = "%s/%s/events" % (MEETUP_API_URL,
+                            group.get('meetup'))
+    logger.debug(url)
+    try:
+        resp = requests.get(url,
+                            params={
+                                'status': 'upcoming,proposed,suggested',
+                                'no_earlier_than': no_earlier_than,
+                            },
+                            auth=(group.get('meetup_key'), None))
+        resp.raise_for_status()
+        logger.debug("Events Returned: %s", json.dumps(resp.json(), indent=4))
+        return [Event(x) for x in resp.json()]
+    except requests.exceptions.Timeout:
+        logger.warning('Timeout getting events for %s', group.get('meetup'))
+    except requests.exceptions.ConnectionError:
+        logger.warning('Connection Error getting events for %s', group.get('meetup'))
+    except requests.exceptions.HTTPError:
+        # XXX
+        logger.warning('HTTP Error')
+
+    return None
+
+class Sendmail(object):
+    """ Configuration and e-maill """
+
+    def __init__(self, options, config):
+        self._options = options
+        self._fromaddr = config.get('fromaddr')
+        self._server = config.get('server', 'localhost')
+        self._port = config.get('port', 25)
+        self._username = config.get('username')
+        self._password = config.get('password')
+
+    def sendmail(self, to_addr, cc_addr, subject, body):
+        ''' Do the work of sending mail '''
+
+        dest = set()
+        if self._options.test:
+            dest.add(self._fromaddr)
+        else:
+            dest.add(to_addr)
+            dest.update(cc_addr)
+
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = self._fromaddr
+        msg['To'] = to_addr
+        msg['Cc'] = ", ".join(cc_addr)
+        msg.attach(MIMEText("\n".join(body), 'html'))
+
+        logging.debug("MAIL: From: %s To: %s Cc: %s Subject: %s",
+                      msg.get('From'),
+                      msg.get('To'),
+                      msg.get('Cc'),
+                      msg.get('Subject'))
+        logging.debug("SENDMAIL(%s -> %s)",
+                      self._fromaddr, ",".join(dest))
+        try:
+            server = smtplib.SMTP(self._server, port=self._port)
+        except ConnectionRefusedError:
+            logging.error('Unable to send mail')
+            return
+
+        try:
+            #        server.set_debuglevel(True)
+
+            # identify ourselves, prompting server for supported features
+            server.ehlo()
+
+            # If we can encrypt this session, do it
+            if server.has_extn('STARTTLS'):
+                response = server.starttls()
+                logging.info("STARTTLS %s: %s", response[0], response[1].decode())
+                server.ehlo() # re-identify ourselves over TLS connection
+
+            if self._username and self._password:
+                response = smtp.login(options.username, options.password)
+                logging.info("LOGIN %s: %s", response[0], response[1].decode())
+                
+            resp = server.sendmail(self._fromaddr, dest, msg.as_string())
+            logging.debug("SENDMAIL: %s", resp)
+        finally:
+            server.quit()
+
+def notify_email(sendmail, group, meetings):
+    """ Send e-mail notification """
+
+    requested_types = group.get('email_types', [])
+    if requested_types:
+        notify_types = {}
+        for key, value in NOTIFY_TYPES.items():
+            if key in requested_types and key in meetings:
+                notify_types[key] = value
+    else:
+        notify_types = NOTIFY_TYPES
+
+    logging.debug("notify_email: for %s to %s types: %s",
+                  group.get('name'),
+                  group.get('email'),
+                  ",".join(notify_types.keys()))
+
+    for notify_type in notify_types:
+        attachments = meetings.get(notify_type)
+        if not attachments:
+            continue
+
+        subject = "There {are} {count} {prefix} {event} for {group} {suffix}".format(
+            are="is" if len(attachments) == 1 else "are",
+            count=len(attachments),
+            prefix=notify_types[notify_type].get('prefix', ''),
+            event="event" if len(attachments) == 1 else "events",
+            group=group.get('name'),
+            suffix=notify_types[notify_type].get('suffix', ''))
+
+        body = []
+        body.append("<html><body>")
+        body.append('<h3>Events for <a href="%s/%s">%s</a></h3>' % (
+            MEETUP_URL,
+            group['meetup'],
+            group['name']))
+        body.append("<dl>")
+        for meeting in meetings.get(notify_type):
+            body.append(meeting)
+        body.append("</dl></body></html>")
+
+        sendmail.sendmail(group.get('email'), [], subject, body)
+
+def notify_slack(options, slack, group, meetings):
+    """ Send the notifications """
+
+    for notify_type in NOTIFY_TYPES:
+        attachments = meetings.get(notify_type)
+        if not attachments:
+            continue
+        msg_text = "There %s %d %s %s for <%s|%s> %s:" % (
+            "is" if len(attachments) == 1 else "are",
+            len(attachments),
+            NOTIFY_TYPES[notify_type].get('prefix', ''),
+            "event" if len(attachments) == 1 else "events",
+            "%s/%s" % (MEETUP_URL, group.get('meetup')),
+            group.get('name'),
+            NOTIFY_TYPES[notify_type].get('suffix', '')),
+
+        logging.debug("SENDING: %s" % json.dumps({
+            'text': msg_text,
+            'attachments': attachments
+        }, indent=4))
+
+        if options.noop:
+            continue
+
+        response = slack.api_call(
+            "chat.postMessage",
+            channel = group.get('slack_channel'),
+            username = 'Meetup',
+            text = msg_text,
+            attachments = attachments)
+        
+        if not response.get('ok'):
+            logging.warning(json.dumps(response, indent=4))
+        else:
+            logging.debug(json.dumps(response, indent=4))
+    
+
+def main():
+    """ Where it all happens """
+
+    (parser, options) = parse_args()
+
+    logger = init_logging(options)
+
+    # Read Config file
+    try:
+        with open(os.path.expanduser(options.config)) as filep:
+            config = yaml.load(filep, Loader=yaml.SafeLoader)
+    except IOError as err:
+        sys.exit(err)
+    except yaml.scanner.ScannerError as err:
+        raise self.ParseError("YAML Parse error on %s: %s" % (self._options.config, err))
+
+    if 'email' in config:
+        sendmail = Sendmail(options, config.get('email', {}))
+    else:
+        sendmail = None
+
+    # Read status DB
+    event_status = {}
+    if options.load:
+        try:
+            with open(os.path.expanduser(options.statusdb), 'rb') as filep:
+                event_status = pickle.load(filep)
+        except (EOFError, IOError, pickle.PickleError) as error:
+            logger.debug("Loading %s: %s", options.statusdb, error)
+
+    today = datetime.date.today()
+    time_now = datetime.datetime.now()
+    no_earlier_than = time_now
+
+    if time_now.hour == options.ahead_hour:
+        if today.weekday() == 6:
+            no_later_than = (time_now + datetime.timedelta(days=7))
+            notify_type = 'week'
+        else:
+            no_later_than = (time_now + datetime.timedelta(days=1))
+            notify_type = 'tomorrow'
+    elif time_now.hour == options.today_hour:
+        no_later_than = datetime.datetime.combine(today, datetime.time(hour=23, minute=59))
+        notify_type = 'today'
+    else:
+        no_later_than = (time_now + datetime.timedelta(hours=1))
+        notify_type = 'hour'
+
+    for group in config.get('meetups'):
+        logger.info("Processing %s for %s from %s to %s", group.get('meetup'), notify_type, no_earlier_than, no_later_than)
+
+        notify_events = get_events(logger, group, no_earlier_than.isoformat())
+        if not notify_events:
+            continue
+
+        slack = slack_sdk.WebClient(group.get('slack_key'))
+        
+        meetings = {}
+        emails = {}
+
+        for event in notify_events:
+            whats_updated = set()
+            event_notify_type = notify_type
+            logger.info("\t%s %s", event.name, event.datetime)
+
+            if event.id not in event_status:
+                event_status[event.id] = EventStatus(event.id, event.updated, event.time, event.duration, event.venue_id)
+                if event.datetime > no_later_than:
+                    event_notify_type = 'new'
+            else:
+                whats_updated = event_status[event.id].updated(event.last_updated, event.time, event.duration, event.venue_id)
+                if whats_updated:
+                    if event.datetime > no_later_than:
+                        event_notify_type = 'updated'
+                else:
+                    if event.datetime > no_later_than or event_status[event.id].notified(notify_type):
+                        continue
+            event_status[event.id].notify(notify_type)
+
+            logger.info("\t\t%s %s %s", event_notify_type, notify_type, ", ".join(whats_updated))
+
+            text = "<!date^%d^{date_short_pretty}|%s> from <!date^%d^{time}|%s> to <!date^%d^{time}|%s>" % (
+                event.time,
+                event.meeting_day,
+                event.time,
+                event.start_time,
+                event.time + event.duration,
+                event.end_time)
+            venue = event.venue_slack
+            if venue:
+                text += '\n%s' % venue
+            attending = event.yes_rsvp_count
+            if attending:
+                text += "\n%d people are planning to attend" % attending
+            if whats_updated:
+                text += "\nUpdated info: %s" % ", ".join(whats_updated)
+            meetings.setdefault(event_notify_type, []).append({
+                'color': '#e0393e',
+                'title': event.name,
+                'title_link': event.link,
+                'text': text,
+            })
+
+            text_adds = []
+            if event.venue_html:
+                text_adds.append('{event.venue_html}'.format(event=event))
+            if event.yes_rsvp_count:
+                text_adds.append('{event.yes_rsvp_count} people are planning to attend'.format(event=event))
+            text = '<dt>{event.meeting_day} from {event.start_time} to {event.end_time} - <a href="{event.link}">{event.name}</a></dt><dd>{adds}</dd>'.format(event=event,
+                                                                                                                                                              adds="<br>".join(text_adds))
+            emails.setdefault(event_notify_type, []).append(text)
+
+        notify_slack(options, slack, group, meetings)
+        if sendmail and group.get('email'):
+            notify_email(sendmail, group, emails)
+
+    # Write status DB
+    try:
+        with open(os.path.expanduser(options.statusdb), 'wb') as filep:
+            pickle.dump(event_status, filep)
+    except (EOFError, IOError, pickle.PickleError) as error:
+        logger.warning("Writing %s: %s", options.statusdb, error)
+            
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        print()
+        sys.exit(1)
