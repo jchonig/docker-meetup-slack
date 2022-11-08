@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
 
-""" Post Meetup reminders in Slack """
+"""
+
+Post Meetup reminders in Slack
+
+XXX - Make a Slack App: https://api.slack.com/slack-apps
+XXX - Add class for config data
+XXX - Display @here for TODAY?
+
+Message formating: https://api.slack.com/docs/message-formatting
+Building Slack Apps: https://api.slack.com/slack-apps
+Getting events list: https://www.meetup.com/meetup_api/docs/:urlname/events/#list
+"""
 
 from __future__ import print_function
 import argparse
@@ -8,38 +19,29 @@ import datetime
 import json
 import logging
 import os
+import pprint
 import smtplib
 import sys
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-"XXX - Make a Slack App: https://api.slack.com/slack-apps"
-"XXX - Add class for config data"
-"XXX - Display @here for TODAY?"
+import yaml
 
-"Message formating: https://api.slack.com/docs/message-formatting"
-"Building Slack Apps: https://api.slack.com/slack-apps"
-"Getting events list: https://www.meetup.com/meetup_api/docs/:urlname/events/#list"
-
-try:
-    import yaml
-except ImportError as error:
-    sys.exit(error)
+import slack_sdk
+import slack_sdk.errors
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-    
+
 try:
     import requests
     import requests.exceptions
 except ImportError:
     print("Python requests library is required to run this script")
     sys.exit(1)
-
-import slack_sdk
 
 MEETUP_API_URL = "https://api.meetup.com"
 MEETUP_URL = "https://www.meetup.com"
@@ -265,12 +267,12 @@ class Event(object):
     @property
     def start_time(self):
         """ Return pretty meering start """
-        return self.datetime.strftime("%l:%M %p").strip()
+        return self.datetime.strftime("%-H:%M %p").strip()
 
     @property
     def end_time(self):
         """ Return pretty meeting end time """
-        return  datetime.datetime.fromtimestamp(self.time + self.duration).strftime("%l:%M %p").strip()
+        return datetime.datetime.fromtimestamp(self.time + self.duration).strftime("%-H:%M %p").strip()
 
     @property
     def venue_id(self):
@@ -495,7 +497,7 @@ def notify_slack(options, slack, group, meetings):
             "event" if len(attachments) == 1 else "events",
             "%s/%s" % (MEETUP_URL, group.get('meetup')),
             group.get('name'),
-            NOTIFY_TYPES[notify_type].get('suffix', '')),
+            NOTIFY_TYPES[notify_type].get('suffix', ''))
 
         logging.debug("SENDING: %s" % json.dumps({
             'text': msg_text,
@@ -505,18 +507,19 @@ def notify_slack(options, slack, group, meetings):
         if options.noop:
             continue
 
-        response = slack.api_call(
-            "chat.postMessage",
-            channel = group.get('slack_channel'),
-            username = 'Meetup',
-            text = msg_text,
-            attachments = attachments)
-        
-        if not response.get('ok'):
-            logging.warning(json.dumps(response, indent=4))
+        try:
+            response = slack.chat_postMessage(
+                channel = group.get('slack_channel'),
+                username = 'Meetup',
+                text = msg_text,
+                attachments = attachments)
+        except slack_sdk.errors.SlackApiError as error:
+            logging.error(str(error))
         else:
-            logging.debug(json.dumps(response, indent=4))
-    
+            if not response.get('ok'):
+                logging.warning(pprint.pprint(response))
+            else:
+                logging.debug(pprint.pprint(response))
 
 def main():
     """ Where it all happens """
@@ -567,7 +570,11 @@ def main():
         notify_type = 'hour'
 
     for group in config.get('meetups'):
-        logger.info("Processing %s for %s from %s to %s", group.get('meetup'), notify_type, no_earlier_than, no_later_than)
+        logger.info("Processing %s for %s from %s to %s",
+                    group.get('meetup'),
+                    notify_type,
+                    no_earlier_than,
+                    no_later_than)
 
         notify_events = get_events(logger, group, no_earlier_than.isoformat())
         if not notify_events:
