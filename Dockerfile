@@ -7,7 +7,7 @@ COPY requirements /
 
 RUN \
 	echo "*** Install build dependencies ***" && \
-	apk add --no-cache --virtual .build-deps Xbpy3-pip && \
+	apk add --no-cache --virtual .build-deps py3-pip && \
 	echo "*** Install required packages ***" && \
 	apk add --no-cache $(cat alpine-requirements.txt) && \
 	echo "*** Install required python packages ***" && \
