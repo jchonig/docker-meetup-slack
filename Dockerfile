@@ -1,4 +1,4 @@
-FROM lsiobase/alpine:3.15
+FROM ghcr.io/linuxserver/baseimage-alpine:3.16
 
 ENV \
 	TZ=America/New_York
