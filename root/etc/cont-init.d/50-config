@@ -19,3 +19,6 @@ if [ -f "/config/env" ]; then
   source /config/env
   print_vars "After sourcing /config/env"
 fi
+
+mkdir -p /config/log
+chown abc.abc /config/log

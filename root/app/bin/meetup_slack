@@ -94,6 +94,9 @@ def parse_args():
                        dest="test", default=False,
                        action='store_true',
                        help="Test sending e-mail to fromaddr")
+    group.add_argument("--logfile", "-l",
+                       dest="logfile",
+                       help="Log file for output instead of stdout")
 
     #	Options
     group = parser.add_argument_group("Config Options")
@@ -124,8 +127,18 @@ def init_logging(options):
     """ Set up logging """
 
     logger = logging.getLogger()
-    logger.handlers = []
-    logger.addHandler(logging.StreamHandler())
+
+    # Clear existing handler
+    if logger.hashandlers():
+        logger.handlers = []
+
+    if options.logfile:
+        handler = logging.FileHandler(options.logfile)
+        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+    else:
+        handler = logging.StreamHandler()
+    logger.addHandler(handler)
+
     if options.debug:
         logger.setLevel('DEBUG')
     elif options.verbose:
