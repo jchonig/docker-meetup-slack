@@ -197,35 +197,38 @@ class EventStatus():
 
     def notify(self, notify_type):
         """ Notify that we have alerted for this type """
-        self._notice[notify_type] = datetime.date.today
+        self._notice[notify_type] = datetime.date.today()
 
     def notified(self, notify_type):
         """ Indicate if we have notified for the given type today """
-        if self._notice[notify_type] and self._notice[notify_type] == datetime.date.today:
-            return True
-        return False
+        return self._notice[notify_type] and self._notice[notify_type] == datetime.date.today()
 
     def __repr__(self):
         """ Print it """
 
-        return (
-            f"EventStatus({self._id}, "
-            f"{self._last_updated}, "
-            f"{self._start_time}, "
-            f"{self._end_time - self._start_time}, "
-            f"{self._venue_id}"
-        )
+        return self.__str__()
 
     def __str__(self):
         """ Print it """
 
-        return (
-            f"Event {self._id} "
-            f"last_updated {self._last_updated} "
-            f"start {self._start_time} "
-            f"end {self._end_time} "
-            f"venue {self._venue_id}"
-        )
+        lines = []
+        lines.append(f"Event ID {self._id}")
+        if self._last_updated:
+            lines.append(f"last_updated {datetime.datetime.fromtimestamp(self._last_updated).strftime('%c')}")
+        if self._start_time:
+            lines.append(f"start_time {datetime.datetime.fromtimestamp(self._start_time).strftime('%c')}")
+        if self._end_time:
+            lines.append(f"end_time {datetime.datetime.fromtimestamp(self._end_time).strftime('%c')}")
+        if self._venue_id:
+            lines.append(f"venue_id {self._venue_id}")
+        notifies = []
+        for notify_type, notify in self._notice.items():
+            if notify:
+                notifies.append(f"{notify_type}: {notify.strftime('%x')}")
+        if notifies:
+            lines.append(f"notifies {', '.join(notifies)}")
+
+        return " ".join(lines)
 
 class Event():
     """ Event from Meetup """
@@ -328,7 +331,7 @@ class Event():
                     )
 
         if url:
-            return f"<{url}|{'; '.join(location)}>"
+            return f"<{url}|{'; '.join(location).strip()}>"
 
         return "; ".join(location)
 
@@ -528,7 +531,7 @@ def notify_slack(options, slack, group, meetings):
         try:
             response = slack.chat_postMessage(
                 channel = group.get('slack_channel'),
-                username = 'Meetup',
+                icon_emoji = ":meetup:",
                 text = msg_text,
                 attachments = attachments)
         except slack_sdk.errors.SlackApiError as error:
