@@ -129,7 +129,7 @@ def init_logging(options):
     logger = logging.getLogger()
 
     # Clear existing handler
-    if logger.hashandlers():
+    if logger.hasHandlers():
         logger.handlers = []
 
     if options.logfile:
@@ -570,7 +570,7 @@ def main():
             with open(os.path.expanduser(options.statusdb), 'rb') as filep:
                 event_status = pickle.load(filep)
         except (EOFError, IOError, pickle.PickleError) as error:
-            logging.debug("Loading %s: %s", options.statusdb, error)
+            logging.warning("Loading %s: %s", options.statusdb, error)
 
     today = datetime.date.today()
     time_now = datetime.datetime.now()
