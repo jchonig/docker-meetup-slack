@@ -495,7 +495,10 @@ def notify_email(sendmail, group, meetings):
             body.append(meeting)
         body.append("</dl></body></html>")
 
-        sendmail.sendmail(group.get('email'), [], subject, body)
+        try:
+            sendmail.sendmail(group.get('email'), [], subject, body)
+        except OSError as error:
+            logging.warning("Sending e-mail: %s", error)
 
 def notify_slack(options, slack, group, meetings):
     """ Send the notifications """
