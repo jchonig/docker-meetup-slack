@@ -22,6 +22,7 @@ import os
 import pprint
 import smtplib
 import sys
+import time
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -375,25 +376,30 @@ def get_events(group, no_earlier_than):
     """ Query Meetup for events """
 
     url = f"{MEETUP_API_URL}/{group.get('meetup')}/events"
-    logging.debug(url)
-    try:
-        resp = requests.get(url,
-                            params={
-                                'status': 'upcoming,proposed,suggested',
-                                'no_earlier_than': no_earlier_than,
-                            },
-                            auth=(group.get('meetup_key'), None),
-                            timeout=60)
-        resp.raise_for_status()
-        logging.debug("Events Returned: %s", json.dumps(resp.json(), indent=4))
-        return [Event(x) for x in resp.json()]
-    except requests.exceptions.Timeout:
-        logging.warning('Timeout getting events for %s', group.get('meetup'))
-    except requests.exceptions.ConnectionError:
-        logging.warning('Connection Error getting events for %s', group.get('meetup'))
-    except requests.exceptions.HTTPError as error:
-        logging.warning("HTTP Error: %s", error)
+    logging.debug("Getting events from: %s", url)
+    last_error = None
+    for _ in range(5):
+        try:
+            resp = requests.get(url,
+                                params={
+                                    'status': 'upcoming,proposed,suggested',
+                                    'no_earlier_than': no_earlier_than,
+                                },
+                                auth=(group.get('meetup_key'), None),
+                                timeout=60)
+            resp.raise_for_status()
+            logging.debug("Events Returned: %s", json.dumps(resp.json(), indent=4))
+            return [Event(x) for x in resp.json()]
+        except requests.exceptions.Timeout:
+            last_error = 'Timeout getting events'
+        except requests.exceptions.ConnectionError:
+            last_error = 'Connection Error getting events'
+        except requests.exceptions.HTTPError as error:
+            last_error = f"HTTP Error: {error}"
+        time.sleep(5)
 
+    if last_error:
+        logging.warning("%s getting events for %s", last_error, group.get('meetup'))
     return None
 
 class Sendmail():
