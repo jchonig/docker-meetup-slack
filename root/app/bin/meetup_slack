@@ -278,18 +278,19 @@ class Event():
     @property
     def datetime(self):
         """ Return start time as a datetime """
-        return datetime.datetime.fromtimestamp(self.time)
+        return datetime.datetime.fromtimestamp(
+            self.time).replace(
+                tzinfo=datetime.timezone(datetime.timedelta(seconds=self.utc_offset)))
 
     @property
     def start_time(self):
         """ Return pretty meering start """
-        return self.datetime.strftime("%-H:%M %p").strip()
+        return self.datetime.strftime("%-H:%M %p %Z").strip()
 
     @property
     def end_time(self):
         """ Return pretty meeting end time """
-        return datetime.datetime.fromtimestamp(
-            self.time + self.duration).strftime("%-H:%M %p").strip()
+        return (self.datetime + datetime.timedelta(seconds=self.duration)).strftime("%-H:%M %p %Z").strip()
 
     @property
     def venue_id(self):
@@ -380,13 +381,14 @@ def get_events(group, no_earlier_than):
     last_error = None
     for _ in range(5):
         try:
-            resp = requests.get(url,
-                                params={
-                                    'status': 'upcoming,proposed,suggested',
-                                    'no_earlier_than': no_earlier_than,
-                                },
-                                auth=(group.get('meetup_key'), None),
-                                timeout=60)
+            resp = requests.get(
+                url,
+                params={
+                    'status': 'upcoming,proposed,suggested',
+                    'no_earlier_than': no_earlier_than.replace(tzinfo=None).isoformat(),
+                },
+                auth=(group.get('meetup_key'), None),
+                timeout=60)
             resp.raise_for_status()
             logging.debug("Events Returned: %s", json.dumps(resp.json(), indent=4))
             return [Event(x) for x in resp.json()]
@@ -581,8 +583,9 @@ def main():
         except (EOFError, IOError, pickle.PickleError) as error:
             logging.warning("Loading %s: %s", options.statusdb, error)
 
-    today = datetime.date.today()
-    time_now = datetime.datetime.now()
+    tz_utc=datetime.timezone(datetime.timedelta(seconds=0))
+    today = datetime.datetime.today().replace(tzinfo=tz_utc).date()
+    time_now = datetime.datetime.utcnow().replace(tzinfo=tz_utc)
     no_earlier_than = time_now
 
     if time_now.hour == options.ahead_hour:
@@ -606,7 +609,7 @@ def main():
                     no_earlier_than,
                     no_later_than)
 
-        notify_events = get_events(group, no_earlier_than.isoformat())
+        notify_events = get_events(group, no_earlier_than)
         if not notify_events:
             continue
 
