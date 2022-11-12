@@ -1,7 +1,7 @@
 /config/log/meetup_slack.log.log {
+	daily
 	missingok
 	notifempty
-	daily
 	rotate 7
 	compress
 	su abc abc
