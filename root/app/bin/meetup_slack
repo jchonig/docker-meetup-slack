@@ -561,6 +561,7 @@ def notify_slack(options, slack, group, meetings):
         logging.debug("SENDING: %s",
                       json.dumps({
                           'text': msg_text,
+                          'unfurl_links': False,
                           'attachments': attachments
                       }, indent=4))
 
