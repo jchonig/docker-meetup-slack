@@ -58,6 +58,37 @@ services:
     the `config` directory. This file is sourced by the shell.
   * Configure meetup-slack as follows
     * Provide a configuartion file file(s) in config/meetup-slack.yml
+  * A state file is stored in `config/meetup_slack.db`
+  * Logs are store in `config/logs/meetup_slack.log` and automatically
+    rotated daily
+
+# Configuration
+
+Until the configuration is documented, here is sample.
+
+```yaml
+---
+email:
+  fromaddr: joe.black@gmail.com
+meetups:
+- name: Meetup Group One
+  meetup: Meetup-Group-One-Community-Meetup
+  meetup_key: MEETUP_KEY_ONE
+  slack_key: SLACK_KEY_ONE
+  slack_channel: "#general"
+  email: groupone.email@gmail.com
+  email_types:
+  - tomorrow
+- name: Meetup Group Two
+  meetup: Meetup-Group-Two-Community-Meetup
+  meetup_key: MEETUP_KEY_TWO
+  slack_key: SLACK_KEY_TWO
+  slack_channel: "#general"
+  email: grouptwo.email.gmail.com
+  email_types:
+  - tomorrow
+...
+```
 
 ## TODO
 
