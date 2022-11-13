@@ -231,10 +231,11 @@ class EventStatus():
 
         return " ".join(lines)
 
-class Event():
-    """ Event from Meetup """
+class Group():
+    """ Group from Meetup Event """
 
-    def __init__(self, data):
+    def __init__(self, event, data):
+        self.event = event
         self._data = data
 
     def __getattr__(self, attr):
@@ -244,6 +245,114 @@ class Event():
             return self._data[attr]
 
         return None
+
+    def __str__(self):
+        return pprint.pformat(self._data)
+
+    def __repr__(self):
+        return pprint.pformat(self._data)
+
+class Venue():
+    """ Venue from Meetup Event """
+
+    def __init__(self, event, data):
+        self.event = event
+        self._data = data
+
+    def __getattr__(self, attr):
+        """ Get event attributes """
+
+        if attr in self._data:
+            return self._data[attr]
+
+        return None
+
+    def __str__(self):
+        return pprint.pformat(self._data)
+
+    def __repr__(self):
+        return pprint.pformat(self._data)
+
+    def _format(self):
+        """ Format the location """
+
+        url = None
+        location = []
+        if 'name' in self._data:
+            location.append(self.name)
+            if self.event.is_online_event and 'how_to_find_us' in self.event:
+                url = self.event.how_to_find_us.strip()
+            else:
+                if 'address_1' in self._data:
+                    location.append(self.address_1)
+                    if 'address_2' in self._data:
+                        location.append(self.address_2)
+                    if 'address_3' in self._data:
+                        location.append(self.address_3)
+                locality = ""
+                if 'city' in self._data:
+                    locality = f"{self.city}, "
+                    if 'state' in self._data:
+                        locality += f"{self.state.upper()}  "
+                        if 'zip' in self._data:
+                            locality += f"{self.zip}"
+                    location.append(locality)
+
+                if 'lat' in self._data and 'lon' in self._data:
+                    url = (
+                        "https://www.google.com/maps/dir/?api=1&destination="
+                        f"{self.lat},{self.lon}"
+                    )
+
+        return (url, location)
+
+    @property
+    def to_slack(self):
+        """ Return the venue formated for slack """
+
+        url, location = self._format()
+        if url:
+            return f"<{url}|{'; '.join(location).strip()}>"
+
+        return "; ".join(location)
+
+    @property
+    def to_html(self):
+        """ Return the venue formated for slack """
+
+        url, location = self._format()
+        if url:
+            return f'<a href="{url}">{"; ".join(location)}</a>'
+
+        return "; ".join(location)
+
+class Event():
+    """ Event from Meetup """
+
+    def __init__(self, data):
+        self._data = data
+        if 'group' in self._data:
+            self.group = Group(self, self._data['group'])
+        else:
+            self.group = None
+        if 'venue' in self._data:
+            self.venue = Venue(self, self._data['venue'])
+        else:
+            self.venue = None
+
+    def __getattr__(self, attr):
+        """ Get event attributes """
+
+        if attr in self._data:
+            return self._data[attr]
+
+        return None
+
+    def __str__(self):
+        return pprint.pformat(self._data)
+
+    def __repr__(self):
+        return pprint.pformat(self._data)
 
     @property
     def time(self):
@@ -278,9 +387,11 @@ class Event():
     @property
     def datetime(self):
         """ Return start time as a datetime """
-        return datetime.datetime.fromtimestamp(
-            self.time).replace(
-                tzinfo=datetime.timezone(datetime.timedelta(seconds=self.utc_offset)))
+
+        tzinfo = datetime.timezone(
+            datetime.timedelta(seconds=self.utc_offset),
+            name=self.group.timezone)
+        return datetime.datetime.fromtimestamp(self.time).replace(tzinfo=tzinfo)
 
     @property
     def start_time(self):
@@ -292,86 +403,6 @@ class Event():
         """ Return pretty meeting end time """
         return (self.datetime + datetime.timedelta(seconds=self.duration)).strftime("%-H:%M %p %Z").strip()
 
-    @property
-    def venue_id(self):
-        """ Return venue_id """
-
-        if 'venue' not in self._data:
-            return None
-
-        return self._data['venue']['id']
-
-    @property
-    def venue_slack(self):
-        """ Return the venue formated for slack """
-
-        if 'venue' not in self._data:
-            return None
-        venue = self._data['venue']
-
-        url = None
-        location = []
-        if 'name' in venue:
-            location.append(venue['name'])
-            if self.is_online_event and 'how_to_find_us' in self._data:
-                url = self._data['how_to_find_us'].strip()
-            else:
-                if 'address_1' in venue:
-                    location.append(venue['address_1'])
-                    if 'address_2' in venue:
-                        location.append(venue['address_2'])
-                    if 'address_3' in venue:
-                        location.append(venue['address_3'])
-                location.append(f"{venue.get('city', '')}, "
-                                f"{venue.get('state', '').upper()}  "
-                                f"{venue.get('zip', '')}")
-
-                if 'lat' in venue and 'lon' in venue:
-                    url = (
-                        "https://www.google.com/maps/dir/?api=1&destination="
-                        f"{venue['lat']},{venue['lon']}"
-                    )
-
-        if url:
-            return f"<{url}|{'; '.join(location).strip()}>"
-
-        return "; ".join(location)
-
-    @property
-    def venue_html(self):
-        """ Return the venue formated for slack """
-
-        if 'venue' not in self._data:
-            return None
-        venue = self._data['venue']
-
-        url = None
-        location = []
-        if 'name' in venue:
-            location.append(venue['name'])
-            if self.is_online_event and 'how_to_find_us' in self._data:
-                url = self._data['how_to_find_us']
-            else:
-                if 'address_1' in venue:
-                    location.append(venue['address_1'])
-                    if 'address_2' in venue:
-                        location.append(venue['address_2'])
-                    if 'address_3' in venue:
-                        location.append(venue['address_3'])
-                location.append(f"{venue.get('city', '')}, "
-                                f"{venue.get('state', '').upper()}  "
-                                f"{venue.get('zip', '')}")
-
-                if 'lat' in venue and 'lon' in venue:
-                    url = (
-                        "https://www.google.com/maps/dir/?api=1&destination="
-                        f"{venue['lat']},{venue['lon']}"
-                    )
-
-        if url:
-            return f'<a href="{url}">{"; ".join(location)}</a>'
-
-        return "; ".join(location)
 
 def get_events(group, no_earlier_than):
     """ Query Meetup for events """
@@ -628,14 +659,14 @@ def main():
                                                      event.updated,
                                                      event.time,
                                                      event.duration,
-                                                     event.venue_id)
+                                                     event.venue.id)
                 if event.datetime > no_later_than:
                     event_notify_type = 'new'
             else:
                 whats_updated = event_status[event.id].updated(event.last_updated,
                                                                event.time,
                                                                event.duration,
-                                                               event.venue_id)
+                                                               event.venue.id)
                 if whats_updated:
                     if event.datetime > no_later_than:
                         event_notify_type = 'updated'
@@ -654,7 +685,7 @@ def main():
                 "to "
                 f"<!date^{event.time + event.duration}^{{time}}|{event.end_time}>"
             )
-            venue = event.venue_slack
+            venue = event.venue.to_slack
             if venue:
                 text += f"\n{venue}"
             attending = event.yes_rsvp_count
@@ -670,8 +701,9 @@ def main():
             })
 
             text_adds = []
-            if event.venue_html:
-                text_adds.append(f"{event.venue_html}")
+            venue = event.venue.to_html
+            if venue:
+                text_adds.append(f"{venue}")
             if event.yes_rsvp_count:
                 text_adds.append(f"{event.yes_rsvp_count} people are planning to attend")
             text = (

@@ -1,4 +1,4 @@
-/config/log/meetup_slack.log.log {
+/config/log/meetup_slack.log {
 	daily
 	missingok
 	notifempty

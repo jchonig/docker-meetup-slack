@@ -21,4 +21,12 @@ if [ -f "/config/env" ]; then
 fi
 
 mkdir -p /config/log
-chown abc.abc /config/log
+chown -R abc:abc /config/log
+
+# Put logrotate.status where is will be preserved
+if [ ! -f /config/log/.logrotate.status ]; then
+    touch /config/log/.logrotate.status
+fi
+chown root:root /config/log/.logrotate.status
+ln -sf /config/log/.logrotate.status /var/lib/logrotate.status
+
