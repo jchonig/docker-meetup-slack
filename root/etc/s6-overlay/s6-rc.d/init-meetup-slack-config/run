@@ -28,5 +28,6 @@ if [ ! -f /config/log/.logrotate.status ]; then
     touch /config/log/.logrotate.status
 fi
 chown root:root /config/log/.logrotate.status
+chmod 600 /config/log/.logrotate.status
 ln -sf /config/log/.logrotate.status /var/lib/logrotate.status
 
