@@ -489,7 +489,7 @@ class Sendmail():
                 server.ehlo() # re-identify ourselves over TLS connection
 
             if self._username and self._password:
-                response = server.login(self._options.username, self._options.password)
+                response = server.login(self._username, self._password)
                 logging.info("LOGIN %s: %s", response[0], response[1].decode())
 
             resp = server.sendmail(self._fromaddr, dest, msg.as_string())
