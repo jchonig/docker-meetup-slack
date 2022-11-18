@@ -111,6 +111,9 @@ def parse_args():
     group.add_argument("--noload",
                        dest="load", action="store_false", default=True,
                        help="Ignore the status db")
+    group.add_argument("--nosave",
+                       dest="save", action="store_false", default=True,
+                       help="Do not write the status db")
     group.add_argument("--ahead_hour",
                        dest="ahead_hour", default=18, type=int,
                        help="The hour (0-24) in which to notify"
@@ -615,6 +618,7 @@ def process(options, config, sendmail):
         try:
             with open(os.path.expanduser(options.statusdb), 'rb') as filep:
                 event_status = pickle.load(filep)
+            logging.info("Read %s", options.statusdb)
         except (EOFError, IOError, pickle.PickleError) as error:
             logging.warning("Loading %s: %s", options.statusdb, error)
 
@@ -728,11 +732,13 @@ def process(options, config, sendmail):
             notify_email(sendmail, group, emails)
 
     # Write status DB
-    try:
-        with open(os.path.expanduser(options.statusdb), 'wb') as filep:
-            pickle.dump(event_status, filep)
-    except (EOFError, IOError, pickle.PickleError) as error:
-        logging.warning("Writing %s: %s", options.statusdb, error)
+    if options.save:
+        try:
+            with open(os.path.expanduser(options.statusdb), 'wb') as filep:
+                pickle.dump(event_status, filep)
+                logging.info("Wrote %s", options.statusdb)
+        except (EOFError, IOError, pickle.PickleError) as error:
+            logging.warning("Writing %s: %s", options.statusdb, error)
 
 def main():
     """ Setup enough to catch exceptions """
