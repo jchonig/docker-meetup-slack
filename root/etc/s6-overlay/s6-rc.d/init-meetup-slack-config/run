@@ -12,12 +12,12 @@ print_vars () {
     echo "    TZ=${TZ}"
 }
 
-print_vars 
+print_vars $0
 
 # load env file if it exists
 if [ -f "/config/env" ]; then
   source /config/env
-  print_vars "After sourcing /config/env"
+  print_vars "$0: After sourcing /config/env"
 fi
 
 mkdir -p /config/log
@@ -29,5 +29,4 @@ if [ ! -f /config/log/.logrotate.status ]; then
 fi
 chown root:root /config/log/.logrotate.status
 chmod 600 /config/log/.logrotate.status
-ln -sf /config/log/.logrotate.status /var/lib/logrotate.status
 
