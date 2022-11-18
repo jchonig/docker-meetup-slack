@@ -23,6 +23,7 @@ import pprint
 import smtplib
 import sys
 import time
+import traceback
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -450,7 +451,7 @@ class Sendmail():
         ''' Do the work of sending mail '''
 
         dest = set()
-        if self._options.test:
+        if self._options.test or not to_addr:
             dest.add(self._fromaddr)
         else:
             dest.add(to_addr)
@@ -459,7 +460,7 @@ class Sendmail():
         msg = MIMEMultipart('alternative')
         msg['Subject'] = subject
         msg['From'] = self._fromaddr
-        msg['To'] = to_addr
+        msg['To'] = to_addr or self._fromaddr
         msg['Cc'] = ", ".join(cc_addr)
         msg.attach(MIMEText("\n".join(body), 'html'))
 
@@ -496,6 +497,28 @@ class Sendmail():
             logging.debug("SENDMAIL: %s", resp)
         finally:
             server.quit()
+
+def notify_exception(config, sendmail, exception):
+    """ Send e-mail on an exception """
+
+    if not sendmail:
+        return
+
+    progname = os.path.basename(sys.argv[0])
+    now = datetime.datetime.now()
+    subject = f'Traceback from {progname} at {now}'
+
+    body = []
+    body.append("<html><body>")
+    body.append(f'<h3>{subject}</h3>')
+    body.append("<pre>")
+    body.extend(traceback.format_exception(exception))
+    body.append("</pre></body></html>")
+
+    try:
+        sendmail.sendmail([], [], subject, body)
+    except OSError as error:
+        logging.warning("Sending e-mail: %s", error)
 
 def notify_email(sendmail, group, meetings):
     """ Send e-mail notification """
@@ -584,29 +607,9 @@ def notify_slack(options, slack, group, meetings):
             else:
                 logging.debug("DEBUG: Slack response: %s", pprint.pformat(response))
 
-def main():
-    """ Where it all happens """
+def process(options, config, sendmail):
+    """ Where the work is done """
 
-    options = parse_args()
-
-    init_logging(options)
-
-    # Read Config file
-    try:
-        with open(os.path.expanduser(options.config), encoding='utf-8') as filep:
-            config = yaml.load(filep, Loader=yaml.SafeLoader)
-    except IOError as err:
-        sys.exit(err)
-    except yaml.scanner.ScannerError as err:
-        logging.error("YAML Parse error on %s: %s", options.config, err)
-        sys.exit(1)
-
-    if 'email' in config:
-        sendmail = Sendmail(options, config.get('email', {}))
-    else:
-        sendmail = None
-
-    # Read status DB
     event_status = {}
     if options.load:
         try:
@@ -731,11 +734,38 @@ def main():
     except (EOFError, IOError, pickle.PickleError) as error:
         logging.warning("Writing %s: %s", options.statusdb, error)
 
+def main():
+    """ Setup enough to catch exceptions """
+
+    options = parse_args()
+
+    init_logging(options)
+
+    # Read Config file
+    try:
+        with open(os.path.expanduser(options.config), encoding='utf-8') as filep:
+            config = yaml.load(filep, Loader=yaml.SafeLoader)
+    except IOError as err:
+        sys.exit(err)
+    except yaml.scanner.ScannerError as err:
+        logging.error("YAML Parse error on %s: %s", options.config, err)
+        sys.exit(1)
+
+    if 'email' in config:
+        sendmail = Sendmail(options, config.get('email', {}))
+    else:
+        sendmail = None
+
+    try:
+        return process(options, config, sendmail)
+    except Exception as exception:
+        notify_exception(config, sendmail, exception)
+
+    # Read status DB
+
 if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
         print()
         sys.exit(1)
-    except Exception as error:
-        logging.exception('')
