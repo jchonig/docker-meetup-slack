@@ -18,6 +18,7 @@ import argparse
 import datetime
 import json
 import logging
+import logging.handlers
 import os
 import pprint
 import smtplib
@@ -137,8 +138,10 @@ def init_logging(options):
     if logger.hasHandlers():
         logger.handlers = []
 
-    if options.logfile:
-        handler = logging.FileHandler(options.logfile)
+    if options.logfile and not sys.stdout.isatty():
+        handler = logging.handlers.TimedRotatingFileHandler(options.logfile,
+                                                            when="midnight",
+                                                            backupCount=7)
         handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
     else:
         handler = logging.StreamHandler()

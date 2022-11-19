@@ -23,10 +23,5 @@ fi
 mkdir -p /config/log
 chown -R abc:abc /config/log
 
-# Put logrotate.status where is will be preserved
-if [ ! -f /config/log/.logrotate.status ]; then
-    touch /config/log/.logrotate.status
-fi
-chown root:root /config/log/.logrotate.status
-chmod 600 /config/log/.logrotate.status
+rm -f /config/log/.logrotate.status
 
