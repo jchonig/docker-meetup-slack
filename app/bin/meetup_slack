@@ -148,7 +148,7 @@ def init_logging(options):
     if logger.hasHandlers():
         logger.handlers = []
 
-    if options.logfile and not sys.stdout.isatty():
+    if options.logfile:
         handler = logging.handlers.TimedRotatingFileHandler(options.logfile,
                                                             when="midnight",
                                                             backupCount=7)
@@ -163,6 +163,9 @@ def init_logging(options):
         logger.setLevel('INFO')
     else:
         logger.setLevel('WARNING')
+
+    if options.logfile:
+        logging.warning("#\n#%s\n#", " ".join(sys.argv))
 
 class EventStatus():
     """ Store prior status of event by id """

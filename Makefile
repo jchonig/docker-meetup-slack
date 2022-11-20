@@ -7,6 +7,7 @@ VOLUMES= \
 ENVIRONMENT= \
     -e TZ=${TZ}
 DOCKER_ARGS=${VOLUMES} ${ENVIRONMENT} -it ${IMAGE}:${TAG} /usr/bin/with-contenv
+DOCKER_TEST_ARGS=${VOLUMES} ${ENVIRONMENT} -it jchonig/${IMAGE}:${TAG} /usr/bin/with-contenv
 
 all: push
 
@@ -14,11 +15,13 @@ clean:
 	find . -name \*~ -delete
 
 pdb: build
-	docker run ${DOCKER_ARGS} python3 -mpdb bin/meetup_slack -v ${FLAGS}
+	docker run ${DOCKER_ARGS} python3 -mpdb /app/bin/meetup_slack -v ${FLAGS}
 
 run: build
 	docker run ${DOCKER_ARGS} bin/meetup_slack -v ${FLAGS}
 
+test: pull
+	docker run ${DOCKER_TEST_ARGS} bash
 
 # Run the container with just a bash shell
 bash: build
@@ -26,5 +29,8 @@ bash: build
 
 build: true
 	docker build -t ${IMAGE}:${TAG} .
+
+pull: true
+	docker pull jchonig/${IMAGE}:${TAG}
 
 true: ;
