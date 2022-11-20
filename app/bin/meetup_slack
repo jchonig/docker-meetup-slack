@@ -29,6 +29,10 @@ import traceback
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+import dateutil.parser
+import dateutil.utils
+import isodate
+import pytz
 import yaml
 
 import slack_sdk
@@ -46,7 +50,7 @@ except ImportError:
     print("Python requests library is required to run this script")
     sys.exit(1)
 
-MEETUP_API_URL = "https://api.meetup.com"
+MEETUP_API_URL = "https://api.meetup.com/gql"
 MEETUP_URL = "https://www.meetup.com"
 NOTIFY_TYPES = {
     'week': {
@@ -97,6 +101,12 @@ def parse_args():
                        dest="test", default=False,
                        action='store_true',
                        help="Test sending e-mail to fromaddr")
+    group.add_argument("--test-ahead",
+                       action="store_true",
+                       help="Test upcoming events")
+    group.add_argument("--test-today",
+                       action="store_true",
+                       help="Test events today")
     group.add_argument("--logfile", "-l",
                        dest="logfile",
                        help="Log file for output instead of stdout")
@@ -157,12 +167,11 @@ def init_logging(options):
 class EventStatus():
     """ Store prior status of event by id """
 
-    def __init__(self, id, last_updated, time, duration, venue_id):
+    def __init__(self, id, datetime, duration, venue_id):
         self._id = id
-        self._last_updated = last_updated
         self._notice = {}
-        self._start_time = time
-        self._end_time = time + duration
+        self._start_time = datetime
+        self._end_time = datetime + duration
         self._venue_id = venue_id
 
         for notify_type in NOTIFY_TYPES:
@@ -172,16 +181,13 @@ class EventStatus():
     def id(self):
         return self._id
 
-    def updated(self, last_updated, time, duration, venue_id):
+    def updated(self, datetime, duration, venue_id):
         """ Return what has changed """
 
         result = set()
 
-        if self._last_updated == last_updated:
-            return result
-
-        start_time = time
-        end_time = time + duration
+        start_time = int(datetime.timestamp())
+        end_time = int((datetime + duration).timestamp())
 
         if self._start_time != start_time and self._end_time != end_time:
             result.add('time changed')
@@ -190,16 +196,17 @@ class EventStatus():
                 result.add('start time changed')
             elif self._end_time != end_time:
                 result.add('end time changed')
-        if self._venue_id != venue_id:
-            if venue_id:
+        if self._venue_id != int(venue_id):
+            if not venue_id:
+                result.add('Venue removed')
+            elif not self._venue_id:
                 result.add('Venue added')
             else:
-                result.add('Venue removed')
+                result.add('Venue changed')
 
         self._start_time = start_time
         self._end_time = end_time
-        self._venue_id = venue_id
-        self._last_updated = last_updated
+        self._venue_id = int(venue_id)
 
         return result
 
@@ -221,8 +228,6 @@ class EventStatus():
 
         lines = []
         lines.append(f"Event ID {self._id}")
-        if self._last_updated:
-            lines.append(f"last_updated {datetime.datetime.fromtimestamp(self._last_updated).strftime('%c')}")
         if self._start_time:
             lines.append(f"start_time {datetime.datetime.fromtimestamp(self._start_time).strftime('%c')}")
         if self._end_time:
@@ -241,12 +246,11 @@ class EventStatus():
 class Group():
     """ Group from Meetup Event """
 
-    def __init__(self, event, data):
-        self.event = event
+    def __init__(self, data):
         self._data = data
 
     def __getattr__(self, attr):
-        """ Get event attributes """
+        """ Get group attributes """
 
         if attr in self._data:
             return self._data[attr]
@@ -258,12 +262,24 @@ class Group():
 
     def __repr__(self):
         return pprint.pformat(self._data)
+
+    def upcoming_events(self):
+        """ Get a list of upcoming events """
+
+        upcoming_events = self.upcomingEvents
+        if not upcoming_events:
+            return []
+        event_ids = []
+        for edge in upcoming_events.get('edges', []):
+            event_id = edge['node']['id']
+            event_ids.append(event_id)
+
+        return event_ids
 
 class Venue():
     """ Venue from Meetup Event """
 
-    def __init__(self, event, data):
-        self.event = event
+    def __init__(self, data):
         self._data = data
 
     def __getattr__(self, attr):
@@ -280,58 +296,32 @@ class Venue():
     def __repr__(self):
         return pprint.pformat(self._data)
 
-    def _format(self):
+    def location(self):
         """ Format the location """
 
         url = None
         location = []
         if 'name' in self._data:
             location.append(self.name)
-            if self.event.is_online_event and 'how_to_find_us' in self.event:
-                url = self.event.how_to_find_us.strip()
-            else:
-                if 'address_1' in self._data:
-                    location.append(self.address_1)
-                    if 'address_2' in self._data:
-                        location.append(self.address_2)
-                    if 'address_3' in self._data:
-                        location.append(self.address_3)
-                locality = ""
-                if 'city' in self._data:
-                    locality = f"{self.city}, "
-                    if 'state' in self._data:
-                        locality += f"{self.state.upper()}  "
-                        if 'zip' in self._data:
-                            locality += f"{self.zip}"
-                    location.append(locality)
+            if self.address:
+                location.append(self.address)
+            locality = ""
+            if 'city' in self._data:
+                locality = f"{self.city}, "
+                if 'state' in self._data:
+                    locality += f"{self.state.upper()}  "
+                    if 'postalCode' in self._data:
+                        locality += f"{self.postalCode}"
+                if 'country' in self._data:
+                    locality += f"{self.country.upper()}"
+                location.append(locality)
+            if self.lat and self.lng:
+                url = (
+                    "https://www.google.com/maps/dir/?api=1&destination="
+                    f"{self.lat},{self.lng}"
+                )
 
-                if 'lat' in self._data and 'lon' in self._data:
-                    url = (
-                        "https://www.google.com/maps/dir/?api=1&destination="
-                        f"{self.lat},{self.lon}"
-                    )
-
-        return (url, location)
-
-    @property
-    def to_slack(self):
-        """ Return the venue formated for slack """
-
-        url, location = self._format()
-        if url:
-            return f"<{url}|{'; '.join(location).strip()}>"
-
-        return "; ".join(location)
-
-    @property
-    def to_html(self):
-        """ Return the venue formated for slack """
-
-        url, location = self._format()
-        if url:
-            return f'<a href="{url}">{"; ".join(location)}</a>'
-
-        return "; ".join(location)
+        return (url, '; '.join(location).strip())
 
 class Event():
     """ Event from Meetup """
@@ -339,11 +329,11 @@ class Event():
     def __init__(self, data):
         self._data = data
         if 'group' in self._data:
-            self.group = Group(self, self._data['group'])
+            self.group = Group(self._data['group'])
         else:
             self.group = None
         if 'venue' in self._data:
-            self.venue = Venue(self, self._data['venue'])
+            self.venue = Venue(self._data['venue'])
         else:
             self.venue = None
 
@@ -362,43 +352,34 @@ class Event():
         return pprint.pformat(self._data)
 
     @property
-    def time(self):
+    def start_time_sec(self):
         """ Return event time in sec """
-        return int(int(self._data['time']) / 1000)
+        return int(self.datetime.timestamp())
 
     @property
-    def utc_offset(self):
+    def end_time_sec(self):
         """ Return event time in sec """
-        return int(int(self._data['utc_offset']) / 1000)
+        return int((self.datetime + self.duration).timestamp())
 
     @property
     def duration(self):
         """ Return duration in sec """
-        return int(int(self._data['duration']) / 1000)
-
-    @property
-    def updated(self):
-        """ Return updated in sec """
-        return int(int(self._data['updated']) / 1000)
+        return isodate.parse_duration(self._data['duration'])
 
     @property
     def meeting_day(self):
         """ Return pretty meeting day """
 
-        meeting_date = datetime.date.fromtimestamp(self.time)
-        if meeting_date == datetime.date.today:
+        if self.datetime == datetime.date.today:
             return "Today"
 
-        return meeting_date.strftime("%A %b %e")
+        return self.datetime.strftime("%A %b %e")
 
     @property
     def datetime(self):
         """ Return start time as a datetime """
 
-        tzinfo = datetime.timezone(
-            datetime.timedelta(seconds=self.utc_offset),
-            name=self.group.timezone)
-        return datetime.datetime.fromtimestamp(self.time).replace(tzinfo=tzinfo)
+        return dateutil.parser.parse(self.dateTime)
 
     @property
     def start_time(self):
@@ -408,39 +389,135 @@ class Event():
     @property
     def end_time(self):
         """ Return pretty meeting end time """
-        return (self.datetime + datetime.timedelta(seconds=self.duration)).strftime("%-H:%M %p %Z").strip()
 
+        return (self.datetime + self.duration).strftime("%-H:%M %p %Z").strip()
 
-def get_events(group, no_earlier_than):
-    """ Query Meetup for events """
+    def location(self):
+        """ Return location """
 
-    url = f"{MEETUP_API_URL}/{group.get('meetup')}/events"
-    logging.debug("Getting events from: %s", url)
+        url = None
+        locations = []
+
+        if self.isOnline and self.howToFindUs:
+            # What about onlineVenue?
+            locations.append((self.event.howToFindUs.strip(), "Online"))
+
+        url, location = self.venue.location()
+        if location:
+            locations.append((url, location))
+
+        return locations
+
+def get_graphql(url, auth, query, variables):
+    """ Make a meetup query """
+
     last_error = None
     for _ in range(5):
         try:
-            resp = requests.get(
+            resp = requests.post(
                 url,
-                params={
-                    'status': 'upcoming,proposed,suggested',
-                    'no_earlier_than': no_earlier_than.replace(tzinfo=None).isoformat(),
+                json = {
+                    'query': query,
+                    'variables': json.dumps(variables)
                 },
-                auth=(group.get('meetup_key'), None),
+                auth=auth,
                 timeout=60)
             resp.raise_for_status()
-            logging.debug("Events Returned: %s", json.dumps(resp.json(), indent=4))
-            return [Event(x) for x in resp.json()]
+            logging.debug("Query Returned: %s", json.dumps(resp.json(), indent=4))
+            return resp.json()
         except requests.exceptions.Timeout:
-            last_error = 'Timeout getting events'
+            last_error = 'Timeout making query'
         except requests.exceptions.ConnectionError:
-            last_error = 'Connection Error getting events'
+            last_error = 'Connection Error making query'
         except requests.exceptions.HTTPError as error:
-            last_error = f"HTTP Error: {error}"
+            last_error = f"HTTP Error: {error.response.text}"
+            break
         time.sleep(5)
 
     if last_error:
-        logging.warning("%s getting events for %s", last_error, group.get('meetup'))
+        logging.warning("Query returns: %s", last_error)
+
     return None
+
+def get_event(meetup_key, group, event_id):
+    """ Get information about the listed events """
+
+    logging.debug("Getting event %s from: %s", event_id, group)
+    query = '''
+    query ($eventId: ID) {
+      event(id: $eventId) {
+        dateTime,
+        description,
+        shortDescription,
+        duration,
+        howToFindUs,
+        id,
+        isOnline,
+        eventUrl,
+        dateTime,
+        title,
+        venue {
+          id,
+          name,
+          address,
+          city,
+          state,
+          postalCode,
+          country,
+          lat,
+          lng
+        },
+        going
+      }
+    }'''
+    variables = {
+        "eventId": f"{event_id}"
+    }
+
+    resp = get_graphql(MEETUP_API_URL,
+                       (meetup_key, None),
+                       query,
+                       variables)
+    if resp is None:
+        return resp
+
+    return Event(resp['data']['event'])
+
+def get_group(meetup_key, group):
+    """ Get information about a Meetup Group """
+
+    logging.debug("Getting group from: %s", group)
+    query = '''
+    query ($urlname: String!) {
+      groupByUrlname(urlname: $urlname) {
+        id,
+        name,
+        timezone,
+        upcomingEvents(input: {first: 24}) {
+          count
+          pageInfo {
+            endCursor
+          }
+          edges {
+            node {
+              id,
+            }
+          }
+        },
+      }
+    }'''
+    variables = {
+        "urlname": f"{group}"
+    }
+
+    resp = get_graphql(MEETUP_API_URL,
+                       (meetup_key, None),
+                       query,
+                       variables)
+    if resp is None:
+        return resp
+
+    return Group(resp['data']['groupByUrlname'])
 
 class Sendmail():
     """ Configuration and e-maill """
@@ -538,10 +615,10 @@ def notify_email(sendmail, group, meetings):
     else:
         notify_types = NOTIFY_TYPES
 
-    logging.debug("notify_email: for %s to %s types: %s",
-                  group.get('name'),
-                  group.get('email'),
-                  ",".join(notify_types.keys()))
+    logging.info("notify_email: for %s to %s types: %s",
+                 group.get('name'),
+                 group.get('email'),
+                 ",".join(notify_types.keys()))
 
     for notify_type_name, notify_type in notify_types.items():
         attachments = meetings.get(notify_type_name)
@@ -613,6 +690,86 @@ def notify_slack(options, slack, group, meetings):
             else:
                 logging.debug("DEBUG: Slack response: %s", pprint.pformat(response))
 
+def process_event(event_status, notify_type, no_later_than, event, meetings, emails):
+    """ Process a single event """
+
+    whats_updated = set()
+    event_notify_type = notify_type
+    logging.info("\t%s %s", event.title, event.datetime)
+
+    if event.id not in event_status:
+        event_status[event.id] = EventStatus(event.id,
+                                             event.datetime,
+                                             event.duration,
+                                             event.venue.id)
+        if event.datetime > no_later_than:
+            event_notify_type = 'new'
+    else:
+        whats_updated = event_status[event.id].updated(event.datetime,
+                                                       event.duration,
+                                                       event.venue.id)
+        if whats_updated:
+            if event.datetime > no_later_than:
+                event_notify_type = 'updated'
+        else:
+            if event.datetime > no_later_than \
+               or event_status[event.id].notified(notify_type):
+                return
+    event_status[event.id].notify(notify_type)
+
+    logging.info("\t\t%s %s %s", event_notify_type, notify_type, ", ".join(whats_updated))
+
+    text = (
+        f"<!date^{event.start_time_sec}^{{date_short_pretty}}|{event.meeting_day}> "
+        "from "
+        f"<!date^{event.start_time_sec}^{{time}}|{event.start_time}> "
+        "to "
+        f"<!date^{event.end_time_sec}^{{time}}|{event.end_time}>"
+    )
+
+    # Add location info
+    for url, location in event.location():
+        if url:
+            text += f"\n<{url}|{location}>"
+        else:
+            text += f"\n{location}"
+
+    if event.going:
+        text += f"\n{event.going} people are planning to attend"
+
+    if whats_updated:
+        text += f"\nUpdated info: {', '.join(whats_updated)}"
+
+    meetings.setdefault(event_notify_type, []).append({
+        'color': '#e0393e',
+        'title': event.title,
+        'title_link': event.eventUrl,
+        'text': text,
+    })
+
+    text_adds = []
+    # Add location info
+    for url, location in event.location():
+        if url:
+            text_adds.append(f'<a href="{url}">{location}</a>')
+        else:
+            text.adds.append(location)
+
+    if event.going:
+        text_adds.append(f"{event.going} people are planning to attend")
+    text = (
+        f'<dt>{event.meeting_day} '
+        'from '
+        f'{event.start_time} '
+        'to '
+        f'{event.end_time} '
+        '- '
+        f'<a href="{event.eventUrl}">'
+        f'{event.title}</a></dt>'
+        f'<dd>{"<br>".join(text_adds)}</dd>'
+    )
+    emails.setdefault(event_notify_type, []).append(text)
+
 def process(options, config, sendmail):
     """ Where the work is done """
 
@@ -625,114 +782,66 @@ def process(options, config, sendmail):
         except (EOFError, IOError, pickle.PickleError) as error:
             logging.warning("Loading %s: %s", options.statusdb, error)
 
-    tz_utc=datetime.timezone(datetime.timedelta(seconds=0))
-    today = datetime.datetime.today().replace(tzinfo=tz_utc).date()
-    time_now = datetime.datetime.utcnow().replace(tzinfo=tz_utc)
-    no_earlier_than = time_now
+    for config_group in config.get('meetups'):
 
-    if time_now.hour == options.ahead_hour:
-        if today.weekday() == 6:
-            no_later_than = (time_now + datetime.timedelta(days=7))
-            notify_type = 'week'
+        group = get_group(config_group.get('meetup_key'), config_group.get('meetup'))
+        if not group:
+            continue
+
+        tzinfo = pytz.timezone(group.timezone)
+        today = dateutil.utils.today(tzinfo=tzinfo)
+        no_earlier_than = datetime.datetime.now(tz=tzinfo)
+
+        ahead_hour = options.ahead_hour
+        ahead_day = 6
+        if options.test_ahead:
+            ahead_hour = no_earlier_than.hour
+            ahead_day = today.weekday()
+
+        today_hour = options.today_hour
+        if options.test_today:
+            today_hour = no_earlier_than.hour
+
+        if no_earlier_than.hour == ahead_hour:
+            if today.weekday() == ahead_day:
+                notify_type = 'week'
+                no_later_than = today + datetime.timedelta(days=7,
+                                                           hours=23,
+                                                           minutes=59)
+            else:
+                notify_type = 'tomorrow'
+                no_later_than = today + datetime.timedelta(days=1,
+                                                           hours=23,
+                                                           minutes=59)
+        elif no_earlier_than.hour == today_hour:
+            notify_type = 'today'
+            no_later_than = today + datetime.time(hour=23, minute=59)
         else:
-            no_later_than = (time_now + datetime.timedelta(days=1))
-            notify_type = 'tomorrow'
-    elif time_now.hour == options.today_hour:
-        no_later_than = datetime.datetime.combine(today, datetime.time(hour=23, minute=59))
-        notify_type = 'today'
-    else:
-        no_later_than = (time_now + datetime.timedelta(hours=1))
-        notify_type = 'hour'
+            notify_type = 'hour'
+            no_later_than = no_earlier_than + datetime.timedelta(hours=1)
 
-    for group in config.get('meetups'):
         logging.info("Processing %s for %s from %s to %s",
-                    group.get('meetup'),
+                    group.name,
                     notify_type,
                     no_earlier_than,
                     no_later_than)
 
-        notify_events = get_events(group, no_earlier_than)
-        if not notify_events:
-            continue
+        notify_events = []
 
-        slack = slack_sdk.WebClient(group.get('slack_key'))
+        for event_id in group.upcoming_events():
+            event = get_event(config_group.get('meetup_key'), config_group.get('meetup'), event_id)
+            notify_events.append(event)
+
+        slack = slack_sdk.WebClient(config_group.get('slack_key'))
 
         meetings = {}
         emails = {}
-
         for event in notify_events:
-            whats_updated = set()
-            event_notify_type = notify_type
-            logging.info("\t%s %s", event.name, event.datetime)
+            process_event(event_status, notify_type, no_later_than, event, meetings, emails)
 
-            if event.id not in event_status:
-                event_status[event.id] = EventStatus(event.id,
-                                                     event.updated,
-                                                     event.time,
-                                                     event.duration,
-                                                     event.venue.id)
-                if event.datetime > no_later_than:
-                    event_notify_type = 'new'
-            else:
-                whats_updated = event_status[event.id].updated(event.last_updated,
-                                                               event.time,
-                                                               event.duration,
-                                                               event.venue.id)
-                if whats_updated:
-                    if event.datetime > no_later_than:
-                        event_notify_type = 'updated'
-                else:
-                    if event.datetime > no_later_than \
-                       or event_status[event.id].notified(notify_type):
-                        continue
-            event_status[event.id].notify(notify_type)
-
-            logging.info("\t\t%s %s %s", event_notify_type, notify_type, ", ".join(whats_updated))
-
-            text = (
-                f"<!date^{event.time}^{{date_short_pretty}}|{event.meeting_day}> "
-                "from "
-                f"<!date^{event.time}^{{time}}|{event.start_time}> "
-                "to "
-                f"<!date^{event.time + event.duration}^{{time}}|{event.end_time}>"
-            )
-            venue = event.venue.to_slack
-            if venue:
-                text += f"\n{venue}"
-            attending = event.yes_rsvp_count
-            if attending:
-                text += f"\n{attending} people are planning to attend"
-            if whats_updated:
-                text += f"\nUpdated info: {', '.join(whats_updated)}"
-            meetings.setdefault(event_notify_type, []).append({
-                'color': '#e0393e',
-                'title': event.name,
-                'title_link': event.link,
-                'text': text,
-            })
-
-            text_adds = []
-            venue = event.venue.to_html
-            if venue:
-                text_adds.append(f"{venue}")
-            if event.yes_rsvp_count:
-                text_adds.append(f"{event.yes_rsvp_count} people are planning to attend")
-            text = (
-                f'<dt>{event.meeting_day} '
-                'from '
-                f'{event.start_time} '
-                'to '
-                f'{event.end_time} '
-                '- '
-                f'<a href="{event.link}">'
-                f'{event.name}</a></dt>'
-                f'<dd>{"<br>".join(text_adds)}</dd>'
-            )
-            emails.setdefault(event_notify_type, []).append(text)
-
-        notify_slack(options, slack, group, meetings)
-        if sendmail and group.get('email'):
-            notify_email(sendmail, group, emails)
+        notify_slack(options, slack, config_group, meetings)
+        if sendmail and config_group.get('email'):
+            notify_email(sendmail, config_group, emails)
 
     # Write status DB
     if options.save:
@@ -742,6 +851,9 @@ def process(options, config, sendmail):
                 logging.info("Wrote %s", options.statusdb)
         except (EOFError, IOError, pickle.PickleError) as error:
             logging.warning("Writing %s: %s", options.statusdb, error)
+            return 1
+
+    return 0
 
 def main():
     """ Setup enough to catch exceptions """
@@ -755,22 +867,28 @@ def main():
         with open(os.path.expanduser(options.config), encoding='utf-8') as filep:
             config = yaml.load(filep, Loader=yaml.SafeLoader)
     except IOError as err:
-        sys.exit(err)
+        logging.error("Reading %s: %s", options.config, err)
+        return 1
     except yaml.scanner.ScannerError as err:
         logging.error("YAML Parse error on %s: %s", options.config, err)
-        sys.exit(1)
+        return 1
 
     if 'email' in config:
         sendmail = Sendmail(options, config.get('email', {}))
     else:
         sendmail = None
 
+    # Interactive if on a tty
+    if sys.stdout.isatty():
+        return process(options, config, sendmail)
+
+    # Else try to send errors as e-mail
     try:
         return process(options, config, sendmail)
     except Exception as exception:
         notify_exception(config, sendmail, exception)
 
-    # Read status DB
+    return 0
 
 if __name__ == "__main__":
     try:
