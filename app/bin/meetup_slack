@@ -169,12 +169,13 @@ def init_logging(options):
 class EventStatus():
     """ Store prior status of event by id """
 
-    def __init__(self, id, datetime, duration, venue_id):
-        self._id = id
+    def __init__(self, event):
+        self._id = event.id
         self._notice = {}
-        self._start_time = datetime
-        self._end_time = datetime + duration
-        self._venue_id = venue_id
+        self._start_time = event.datetime.timestamp()
+        self._end_time = (event.datetime + event.duration).timestamp()
+        self._venue_id = int(event.venue.id)
+        self._today = dateutil.utils.today(tzinfo=pytz.timezone(event.group.timezone))
 
         for notify_type in NOTIFY_TYPES:
             self._notice[notify_type] = None
@@ -183,13 +184,13 @@ class EventStatus():
     def id(self):
         return self._id
 
-    def updated(self, datetime, duration, venue_id):
+    def updated(self, event):
         """ Return what has changed """
 
         result = set()
 
-        start_time = int(datetime.timestamp())
-        end_time = int((datetime + duration).timestamp())
+        start_time = int(event.datetime.timestamp())
+        end_time = int((event.datetime + event.duration).timestamp())
 
         if self._start_time != start_time and self._end_time != end_time:
             result.add('time changed')
@@ -198,8 +199,8 @@ class EventStatus():
                 result.add('start time changed')
             elif self._end_time != end_time:
                 result.add('end time changed')
-        if self._venue_id != int(venue_id):
-            if not venue_id:
+        if self._venue_id != int(event.venue.id):
+            if not event.venue.id:
                 result.add('Venue removed')
             elif not self._venue_id:
                 result.add('Venue added')
@@ -208,17 +209,17 @@ class EventStatus():
 
         self._start_time = start_time
         self._end_time = end_time
-        self._venue_id = int(venue_id)
+        self._venue_id = int(event.venue.id)
 
         return result
 
     def notify(self, notify_type):
         """ Notify that we have alerted for this type """
-        self._notice[notify_type] = datetime.date.today()
+        self._notice[notify_type] = self._today
 
     def notified(self, notify_type):
         """ Indicate if we have notified for the given type today """
-        return self._notice[notify_type] and self._notice[notify_type] == datetime.date.today()
+        return self._notice[notify_type] and self._notice[notify_type] == self._today
 
     def __repr__(self):
         """ Print it """
@@ -705,16 +706,11 @@ def process_event(event_status, notify_type, no_later_than, event, meetings, ema
     logging.info("\t%s %s", event.title, event.datetime)
 
     if event.id not in event_status:
-        event_status[event.id] = EventStatus(event.id,
-                                             event.datetime,
-                                             event.duration,
-                                             event.venue.id)
+        event_status[event.id] = EventStatus(event)
         if event.datetime > no_later_than:
             event_notify_type = 'new'
     else:
-        whats_updated = event_status[event.id].updated(event.datetime,
-                                                       event.duration,
-                                                       event.venue.id)
+        whats_updated = event_status[event.id].updated(event)
         if whats_updated:
             if event.datetime > no_later_than:
                 event_notify_type = 'updated'
