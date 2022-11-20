@@ -596,8 +596,7 @@ def notify_email(sendmail, group, meetings):
     else:
         notify_types = NOTIFY_TYPES
 
-    logging.info("notify_email: for %s to %s types: %s",
-                 group.get('name'),
+    logging.info("  EMAIL to %s types: %s",
                  group.get('email'),
                  ",".join(notify_types.keys()))
 
@@ -605,6 +604,10 @@ def notify_email(sendmail, group, meetings):
         attachments = meetings.get(notify_type_name)
         if not attachments:
             continue
+
+        logging.info("    TYPE %s: attachments: %d",
+                     notify_type_name,
+                     len(attachments))
 
         subject = (
             f'There {"is" if len(attachments) == 1 else "are"} '
@@ -632,10 +635,18 @@ def notify_email(sendmail, group, meetings):
 def notify_slack(options, slack, group, meetings):
     """ Send the notifications """
 
+    logging.info("  SLACK channel %s",
+                 group.get('slack_channel'))
+
     for notify_type_name, notify_type in NOTIFY_TYPES.items():
         attachments = meetings.get(notify_type_name)
         if not attachments:
             continue
+
+        logging.info("    TYPE %s: attachments: %d",
+                     notify_type_name,
+                     len(attachments))
+
         msg_text = (
             f'There {"is" if len(attachments) == 1 else "are"} '
             f"{len(attachments)} "
