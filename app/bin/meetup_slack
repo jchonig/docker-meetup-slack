@@ -329,12 +329,17 @@ class Venue():
 class Event():
     """ Event from Meetup """
 
-    def __init__(self, data):
+    def __init__(self, data, group):
         self._data = data
-        if 'group' in self._data:
-            self.group = Group(self._data['group'])
-        else:
-            self.group = None
+        self.group = group
+
+        self.datetime = dateutil.parser.parse(self.dateTime)
+        self.duration = isodate.parse_duration(self._data['duration'])
+        self.start_time = self.datetime.strftime("%-H:%M %p %Z").strip()
+        self.end_time = (self.datetime + self.duration).strftime("%-H:%M %p %Z").strip()
+        self.start_time_sec = int(self.datetime.timestamp())
+        self.end_time_sec = int((self.datetime + self.duration).timestamp())
+
         if 'venue' in self._data:
             self.venue = Venue(self._data['venue'])
         else:
@@ -355,45 +360,13 @@ class Event():
         return pprint.pformat(self._data)
 
     @property
-    def start_time_sec(self):
-        """ Return event time in sec """
-        return int(self.datetime.timestamp())
-
-    @property
-    def end_time_sec(self):
-        """ Return event time in sec """
-        return int((self.datetime + self.duration).timestamp())
-
-    @property
-    def duration(self):
-        """ Return duration in sec """
-        return isodate.parse_duration(self._data['duration'])
-
-    @property
     def meeting_day(self):
         """ Return pretty meeting day """
 
-        if self.datetime == datetime.date.today:
+        if self.datetime == dateutil.utils.today(tzinfo=pytz.timezone(self._group.timezone)):
             return "Today"
 
         return self.datetime.strftime("%A %b %e")
-
-    @property
-    def datetime(self):
-        """ Return start time as a datetime """
-
-        return dateutil.parser.parse(self.dateTime)
-
-    @property
-    def start_time(self):
-        """ Return pretty meering start """
-        return self.datetime.strftime("%-H:%M %p %Z").strip()
-
-    @property
-    def end_time(self):
-        """ Return pretty meeting end time """
-
-        return (self.datetime + self.duration).strftime("%-H:%M %p %Z").strip()
 
     def location(self):
         """ Return location """
