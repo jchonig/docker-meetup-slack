@@ -70,6 +70,9 @@ Until the configuration is documented, here is sample.
 ---
 email:
   fromaddr: joe.black@gmail.com
+  server: smtp.domain.com
+  username: foo@bar.com
+  password: "1Forrest1"
 meetups:
 - name: Meetup Group One
   meetup: Meetup-Group-One-Community-Meetup
@@ -89,10 +92,5 @@ meetups:
   - tomorrow
 ...
 ```
-
-## TODO
-
-  * [ ] Document configuration
-
 
 
