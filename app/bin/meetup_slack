@@ -793,10 +793,11 @@ def process(options, config, sendmail):
                                                            minutes=59)
         elif no_earlier_than.hour == today_hour:
             notify_type = 'today'
-            no_later_than = today + datetime.time(hour=23, minute=59)
+            no_later_than = today + datetime.timedelta(hours=23,
+                                                       minutes=59)
         else:
             notify_type = 'hour'
-            no_later_than = no_earlier_than + datetime.timedelta(hours=1)
+            no_later_than = today + datetime.timedelta(hours=1)
 
         logging.info("Processing %s for %s from %s to %s",
                     group.name,
@@ -864,6 +865,10 @@ def main():
     try:
         return process(options, config, sendmail)
     except Exception as exception:
+        try:
+            logging.exception("Fatal", exp_info=exception)
+        except Exception:
+            pass
         notify_exception(config, sendmail, exception)
 
     return 0
