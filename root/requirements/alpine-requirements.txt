@@ -1,3 +1,0 @@
-logrotate
-py3-requests
-py3-yaml
