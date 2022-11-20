@@ -50,7 +50,6 @@ except ImportError:
     print("Python requests library is required to run this script")
     sys.exit(1)
 
-MEETUP_API_URL = "https://api.meetup.com/gql"
 MEETUP_URL = "https://www.meetup.com"
 NOTIFY_TYPES = {
     'week': {
@@ -411,116 +410,121 @@ class Event():
 
         return locations
 
-def get_graphql(url, auth, query, variables):
-    """ Make a meetup query """
+class Meetup():
+    """ Handle calls to Meetup API """
 
-    last_error = None
-    for _ in range(5):
-        try:
-            resp = requests.post(
-                url,
-                json = {
-                    'query': query,
-                    'variables': json.dumps(variables)
-                },
-                auth=auth,
-                timeout=60)
-            resp.raise_for_status()
-            logging.debug("Query Returned: %s", json.dumps(resp.json(), indent=4))
-            return resp.json()
-        except requests.exceptions.Timeout:
-            last_error = 'Timeout making query'
-        except requests.exceptions.ConnectionError:
-            last_error = 'Connection Error making query'
-        except requests.exceptions.HTTPError as error:
-            last_error = f"HTTP Error: {error.response.text}"
-            break
-        time.sleep(5)
+    _MEETUP_API_URL = "https://api.meetup.com/gql"
 
-    if last_error:
-        logging.warning("Query returns: %s", last_error)
+    def __init__(self, token):
+        self._auth = (token, None)
 
-    return None
+    def _get_graphql(self, query, variables):
+        """ Make a meetup query """
 
-def get_event(meetup_key, group, event_id):
-    """ Get information about the listed events """
+        last_error = None
+        for _ in range(5):
+            try:
+                resp = requests.post(
+                    self._MEETUP_API_URL,
+                    json = {
+                        'query': query,
+                        'variables': json.dumps(variables)
+                    },
+                    auth=self._auth,
+                    timeout=60)
+                resp.raise_for_status()
+                logging.debug("Query Returned: %s", json.dumps(resp.json(), indent=4))
+                return resp.json()
+            except requests.exceptions.Timeout:
+                last_error = 'Timeout making query'
+            except requests.exceptions.ConnectionError:
+                last_error = 'Connection Error making query'
+            except requests.exceptions.HTTPError as error:
+                last_error = f"HTTP Error: {error.response.text}"
+                break
+            time.sleep(5)
 
-    logging.debug("Getting event %s from: %s", event_id, group)
-    query = '''
-    query ($eventId: ID) {
-      event(id: $eventId) {
-        dateTime,
-        description,
-        shortDescription,
-        duration,
-        howToFindUs,
-        id,
-        isOnline,
-        eventUrl,
-        dateTime,
-        title,
-        venue {
-          id,
-          name,
-          address,
-          city,
-          state,
-          postalCode,
-          country,
-          lat,
-          lng
-        },
-        going
-      }
-    }'''
-    variables = {
-        "eventId": f"{event_id}"
-    }
+        if last_error:
+            logging.warning("Query returns: %s", last_error)
 
-    resp = get_graphql(MEETUP_API_URL,
-                       (meetup_key, None),
-                       query,
-                       variables)
-    if resp is None:
-        return resp
+        return None
 
-    return Event(resp['data']['event'])
+    def get_event(self, group, event_id):
+        """ Get information about the listed events """
 
-def get_group(meetup_key, group):
-    """ Get information about a Meetup Group """
-
-    logging.debug("Getting group from: %s", group)
-    query = '''
-    query ($urlname: String!) {
-      groupByUrlname(urlname: $urlname) {
-        id,
-        name,
-        timezone,
-        upcomingEvents(input: {first: 24}) {
-          count
-          pageInfo {
-            endCursor
-          }
-          edges {
-            node {
+        logging.debug("Getting event %s from: %s", event_id, group.name)
+        query = '''
+        query ($eventId: ID) {
+          event(id: $eventId) {
+            dateTime,
+            description,
+            shortDescription,
+            duration,
+            howToFindUs,
+            id,
+            isOnline,
+            eventUrl,
+            dateTime,
+            title,
+            venue {
               id,
-            }
+              name,
+              address,
+              city,
+              state,
+              postalCode,
+              country,
+              lat,
+              lng
+            },
+            going
           }
-        },
-      }
-    }'''
-    variables = {
-        "urlname": f"{group}"
-    }
+        }'''
+        variables = {
+            "eventId": f"{event_id}"
+        }
 
-    resp = get_graphql(MEETUP_API_URL,
-                       (meetup_key, None),
-                       query,
-                       variables)
-    if resp is None:
-        return resp
+        resp = self._get_graphql(query,
+                                 variables)
+        if resp is None:
+            return resp
 
-    return Group(resp['data']['groupByUrlname'])
+        return Event(resp['data']['event'], group)
+
+    def get_group(self, group):
+        """ Get information about a Meetup Group """
+
+        logging.debug("Getting group from: %s", group)
+        query = '''
+        query ($urlname: String!) {
+          groupByUrlname(urlname: $urlname) {
+            id,
+            name,
+            timezone,
+            urlname,
+            upcomingEvents(input: {first: 24}) {
+              count
+              pageInfo {
+                endCursor
+              }
+              edges {
+                node {
+                  id,
+                }
+              }
+            },
+          }
+        }'''
+        variables = {
+            "urlname": f"{group}"
+        }
+
+        resp = self._get_graphql(query,
+                                 variables)
+        if resp is None:
+            return resp
+
+        return Group(resp['data']['groupByUrlname'])
 
 class Sendmail():
     """ Configuration and e-maill """
@@ -787,7 +791,9 @@ def process(options, config, sendmail):
 
     for config_group in config.get('meetups'):
 
-        group = get_group(config_group.get('meetup_key'), config_group.get('meetup'))
+        meetup_api = Meetup(config_group.get('meetup_key'))
+
+        group = meetup_api.get_group(config_group.get('meetup'))
         if not group:
             continue
 
@@ -832,7 +838,7 @@ def process(options, config, sendmail):
         notify_events = []
 
         for event_id in group.upcoming_events():
-            event = get_event(config_group.get('meetup_key'), config_group.get('meetup'), event_id)
+            event = meetup_api.get_event(group, event_id)
             notify_events.append(event)
 
         slack = slack_sdk.WebClient(config_group.get('slack_key'))
