@@ -13,12 +13,14 @@ RUN \
 	echo "*** Install required python packages ***" && \
 	pip3 install --no-cache-dir -r requirements.txt && \
 	echo "*** Clean up build dependencies ***" && \
-	apk del .build-deps && \
+	apk del --purge .build-deps && \
 	rm -rf *requirements.txt
 
 COPY root /
 
-WORKDIR /app
+COPY app /app
+
+WORKDIR /config
 
 VOLUME "/config"
 

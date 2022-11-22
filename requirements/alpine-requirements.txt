@@ -1,3 +1,5 @@
-logrotate
+py3-dateutil
+py3-isodate
 py3-requests
+py3-tz
 py3-yaml
