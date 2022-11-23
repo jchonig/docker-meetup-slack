@@ -820,6 +820,9 @@ def process(options, config, sendmail):
 
         for event_id in group.upcoming_events():
             event = meetup_api.get_event(group, event_id)
+            # Meeting provides info on events that are happening
+            if event.datetime < no_earlier_than:
+                continue
             notify_events.append(event)
 
         slack = slack_sdk.WebClient(config_group.get('slack_key'))
