@@ -149,7 +149,7 @@ def init_logging(options):
 
     if options.logfile:
         with open(options.logfile, "a", encoding="utf-8") as filep:
-            filep.write(f"{datetime.datetime.now().strftime('%F %T,%f')[:-3]}#### {' '.join(sys.argv)} ####\n")
+            filep.write(f"{datetime.datetime.now().strftime('%F %T,%f')[:-3]} START: #### {' '.join(sys.argv)} ####\n")
         handler = logging.handlers.TimedRotatingFileHandler(options.logfile,
                                                             when="midnight",
                                                             backupCount=7)

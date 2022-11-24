@@ -1,2 +1,2 @@
 #min	hour	day	month	weekday	command
-*/15	*	*	*	*	/app/bin/meetup_slack -l /config/log/meetup_slack.log -v
+*/15	*	*	*	*	/app/bin/meetup_slack -l /config/log/meetup_slack.log
