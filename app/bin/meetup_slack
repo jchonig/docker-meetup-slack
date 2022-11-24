@@ -148,6 +148,8 @@ def init_logging(options):
         logger.handlers = []
 
     if options.logfile:
+        with open(options.logfile, "a", encoding="utf-8") as filep:
+            filep.write(f"{datetime.datetime.now().strftime('%F %T,%f')[:-3]}#### {' '.join(sys.argv)} ####\n")
         handler = logging.handlers.TimedRotatingFileHandler(options.logfile,
                                                             when="midnight",
                                                             backupCount=7)
@@ -162,9 +164,6 @@ def init_logging(options):
         logger.setLevel('INFO')
     else:
         logger.setLevel('WARNING')
-
-    if options.logfile:
-        logging.warning("#\n#%s\n#", " ".join(sys.argv))
 
 class EventStatus():
     """ Store prior status of event by id """
