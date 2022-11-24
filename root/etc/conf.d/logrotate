@@ -1,3 +1,0 @@
-#
-
-LOGROTATE_FLAGS="-s /config/log/.logrotate.status -l /dev/console"
