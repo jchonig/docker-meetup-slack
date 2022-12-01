@@ -497,7 +497,10 @@ class Meetup():
         if resp is None:
             return resp
 
-        return Group(resp['data']['groupByUrlname'])
+        try:
+            return Group(resp['data']['groupByUrlname'])
+        except KeyError:
+            return None
 
 class Sendmail():
     """ Configuration and e-maill """
@@ -819,6 +822,8 @@ def process(options, config, sendmail):
 
         for event_id in group.upcoming_events():
             event = meetup_api.get_event(group, event_id)
+            if not event:
+                continue
             # Meeting provides info on events that are happening
             if event.datetime < no_earlier_than:
                 continue
