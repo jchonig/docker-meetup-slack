@@ -148,16 +148,19 @@ def init_logging(options):
         logger.handlers = []
 
     if options.logfile:
-        with open(options.logfile, "a", encoding="utf-8") as filep:
-            filep.write(f"{datetime.datetime.now().strftime('%F %T,%f')[:-3]} START: #### {' '.join(sys.argv)} ####\n")
+        # Rotate when we run at midnight
+        at_time = datetime.time(0, 0, 0, 0, pytz.timezone(os.environ.get('TZ', 'UTC')))
         handler = logging.handlers.TimedRotatingFileHandler(options.logfile,
-                                                            when="D",
-                                                            interval=1,
+                                                            when="midnightn",
+                                                            atTime=at_time,
                                                             backupCount=7)
         handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+        logger.addHandler(handler)
+        # Print our args which will also cause rotation
+        logger.setLevel('INFO')
+        logging.info("#### %s ####", ' '.join(sys.argv))
     else:
-        handler = logging.StreamHandler()
-    logger.addHandler(handler)
+        logger.addHandler(logging.StreamHandler())
 
     if options.debug:
         logger.setLevel('DEBUG')

@@ -1,6 +1,6 @@
 IMAGE=meetup-slack
 TAG=development
-FLAGS=
+FLAGS=-v
 ARGS=
 VOLUMES= \
     -v ${PWD}/config:/config
@@ -15,10 +15,10 @@ clean:
 	find . -name \*~ -delete
 
 pdb: build
-	docker run ${DOCKER_ARGS} python3 -mpdb /app/bin/meetup_slack -v ${FLAGS}
+	docker run ${DOCKER_ARGS} python3 -mpdb /app/bin/meetup_slack ${FLAGS}
 
 run: build
-	docker run ${DOCKER_ARGS} bin/meetup_slack -v ${FLAGS}
+	docker run ${DOCKER_ARGS} /app/bin/meetup_slack ${FLAGS}
 
 test: pull
 	docker run ${DOCKER_TEST_ARGS} bash
