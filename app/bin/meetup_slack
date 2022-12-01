@@ -151,7 +151,8 @@ def init_logging(options):
         with open(options.logfile, "a", encoding="utf-8") as filep:
             filep.write(f"{datetime.datetime.now().strftime('%F %T,%f')[:-3]} START: #### {' '.join(sys.argv)} ####\n")
         handler = logging.handlers.TimedRotatingFileHandler(options.logfile,
-                                                            when="midnight",
+                                                            when="D",
+                                                            interval=1,
                                                             backupCount=7)
         handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
     else:
