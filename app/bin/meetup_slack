@@ -366,7 +366,7 @@ class Event():
     def meeting_day(self):
         """ Return pretty meeting day """
 
-        if self.datetime == dateutil.utils.today(tzinfo=pytz.timezone(self._group.timezone)):
+        if self.datetime == dateutil.utils.today(tzinfo=pytz.timezone(self.group.timezone)):
             return "Today"
 
         return self.datetime.strftime("%A %b %e")
