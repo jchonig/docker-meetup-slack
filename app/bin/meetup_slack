@@ -109,6 +109,15 @@ def parse_args():
     group.add_argument("--logfile", "-l",
                        dest="logfile",
                        help="Log file for output instead of stdout")
+    group.add_argument("--set-day",
+                       type=int,
+                       help="Override current day of month (1-31)")
+    group.add_argument("--set-month",
+                       type=int,
+                       help="Override current month number (1-12)")
+    group.add_argument("--set-year",
+                       type=int,
+                       help="Override current year")
 
     #	Options
     group = parser.add_argument_group("Config Options")
@@ -124,11 +133,11 @@ def parse_args():
     group.add_argument("--nosave",
                        dest="save", action="store_false", default=True,
                        help="Do not write the status db")
-    group.add_argument("--ahead_hour",
+    group.add_argument("--ahead_hour", "--ahead-hour",
                        dest="ahead_hour", default=18, type=int,
                        help="The hour (0-24) in which to notify"
                        "about events this week and tomorrow")
-    group.add_argument("--today_hour",
+    group.add_argument("--today_hour", "--today_hour",
                        dest="today_hour", default=8, type=int,
                        help="The hour (0-24) in which to notify about events today")
     options = parser.parse_args()
@@ -151,7 +160,7 @@ def init_logging(options):
         # Rotate when we run at midnight
         at_time = datetime.time(0, 0, 0, 0, pytz.timezone(os.environ.get('TZ', 'UTC')))
         handler = logging.handlers.TimedRotatingFileHandler(options.logfile,
-                                                            when="midnightn",
+                                                            when="midnight",
                                                             atTime=at_time,
                                                             backupCount=7)
         handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
@@ -786,6 +795,15 @@ def process(options, config, sendmail):
         tzinfo = pytz.timezone(group.timezone)
         today = dateutil.utils.today(tzinfo=tzinfo)
         no_earlier_than = datetime.datetime.now(tz=tzinfo)
+        if options.set_day or options.set_month or options.set_year:
+            no_earlier_than = no_earlier_than.replace(
+                day=options.set_day or no_earlier_than.day,
+                month=options.set_month or no_earlier_than.month,
+                year=options.set_year or no_earlier_than.year)
+            today = today.replace(
+                day=options.set_day or today.day,
+                month=options.set_month or today.month,
+                year=options.set_year or today.year)
 
         ahead_hour = options.ahead_hour
         ahead_day = 6
