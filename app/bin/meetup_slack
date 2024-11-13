@@ -472,8 +472,9 @@ class Meetup():
 
         resp = self._get_graphql(query,
                                  variables)
-        if resp is None:
-            return resp
+
+        if resp is None or resp['data']['event'] is None:
+            return None
 
         return Event(resp['data']['event'], group)
 
