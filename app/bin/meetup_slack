@@ -857,7 +857,10 @@ def process(options, config, sendmail):
         meetings = {}
         emails = {}
         for event in notify_events:
-            process_event(event_status, notify_type, no_later_than, event, meetings, emails)
+            try:
+                process_event(event_status, notify_type, no_later_than, event, meetings, emails)
+            except TypeError:	# Usually missing data
+                pass
 
         notify_slack(options, slack, config_group, meetings)
         if sendmail and config_group.get('email'):
