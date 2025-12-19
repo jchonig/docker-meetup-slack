@@ -1,0 +1,10 @@
+#!/bin/bash
+
+. /app/bin/activate
+
+if [ "${1}" == "-P" ]; then
+   shift
+   /app/bin/python3 -m pdb /app/bin/meetup_slack.py ${*}
+fi
+
+exec /app/bin/meetup_slack.py ${*}

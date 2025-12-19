@@ -1,0 +1,7 @@
+isodate
+pip
+python-dateutil
+pytz
+pyyaml
+requests
+slack-sdk

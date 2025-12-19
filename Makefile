@@ -15,7 +15,7 @@ clean:
 	find . -name \*~ -delete
 
 pdb: build
-	docker run ${DOCKER_ARGS} python3 -mpdb /app/bin/meetup_slack ${FLAGS}
+	docker run ${DOCKER_ARGS} /app/bin/meetup_slack -P ${FLAGS}
 
 run: build
 	docker run ${DOCKER_ARGS} /app/bin/meetup_slack ${FLAGS}
