@@ -186,7 +186,7 @@ class EventStatus():
         self._notice = {}
         self._start_time = event.datetime.timestamp()
         self._end_time = (event.datetime + event.duration).timestamp()
-        self._venue_id = int(event.venue.id)
+        self._venue_id = int(event.venues[0]['id'])
         self._today = dateutil.utils.today(tzinfo=pytz.timezone(event.group.timezone))
 
         for notify_type in NOTIFY_TYPES:
@@ -281,15 +281,11 @@ class Group():
     def upcoming_events(self):
         """ Get a list of upcoming events """
 
-        upcoming_events = self.upcomingEvents
-        if not upcoming_events:
-            return []
-        event_ids = []
-        for edge in upcoming_events.get('edges', []):
-            event_id = edge['node']['id']
-            event_ids.append(event_id)
+        events = []
+        for edge in self.events.get('edges', []):
+            events.append(Event(edge['node'], self))
 
-        return event_ids
+        return events
 
 class Venue():
     """ Venue from Meetup Event """
@@ -352,8 +348,8 @@ class Event():
         self.start_time_sec = int(self.datetime.timestamp())
         self.end_time_sec = int((self.datetime + self.duration).timestamp())
 
-        if 'venue' in self._data:
-            self.venue = Venue(self._data['venue'])
+        if 'venues' in self._data:
+            self.venue = Venue(self._data['venues'][0])
         else:
             self.venue = None
 
@@ -386,7 +382,7 @@ class Event():
         url = None
         locations = []
 
-        if self.isOnline and self.howToFindUs:
+        if self.eventType != "PHYSICAL" and self.howToFindUs:
             # What about onlineVenue?
             locations.append((self.event.howToFindUs.strip(), "Online"))
 
@@ -399,7 +395,7 @@ class Event():
 class Meetup():
     """ Handle calls to Meetup API """
 
-    _MEETUP_API_URL = "https://api.meetup.com/gql"
+    _MEETUP_API_URL = "https://api.meetup.com/gql-ext"
 
     def __init__(self, token):
         self._auth = (token, None)
@@ -410,11 +406,12 @@ class Meetup():
         last_error = None
         for _ in range(5):
             try:
+                logging.debug("Query: %s", json.dumps(variables))
                 resp = requests.post(
                     self._MEETUP_API_URL,
                     json = {
                         'query': query,
-                        'variables': json.dumps(variables)
+                        'variables': variables
                     },
                     auth=self._auth,
                     timeout=60)
@@ -426,7 +423,7 @@ class Meetup():
             except requests.exceptions.ConnectionError:
                 last_error = 'Connection Error making query'
             except requests.exceptions.HTTPError as error:
-                last_error = f"HTTP Error: {error.response.text}"
+                last_error = f"HTTP Error: {json.dumps(error.response.json(), indent=4)}"
                 break
             time.sleep(5)
 
@@ -435,79 +432,55 @@ class Meetup():
 
         return None
 
-    def get_event(self, group, event_id):
-        """ Get information about the listed events """
-
-        logging.debug("Getting event %s from: %s", event_id, group.name)
-        query = '''
-        query ($eventId: ID) {
-          event(id: $eventId) {
-            dateTime,
-            description,
-            shortDescription,
-            duration,
-            howToFindUs,
-            id,
-            isOnline,
-            eventUrl,
-            dateTime,
-            title,
-            venue {
-              id,
-              name,
-              address,
-              city,
-              state,
-              postalCode,
-              country,
-              lat,
-              lng
-            },
-            going
-          }
-        }'''
-        variables = {
-            "eventId": f"{event_id}"
-        }
-
-        resp = self._get_graphql(query,
-                                 variables)
-
-        if resp is None or resp['data']['event'] is None:
-            return None
-
-        return Event(resp['data']['event'], group)
-
     def get_group(self, group):
         """ Get information about a Meetup Group """
 
         logging.debug("Getting group from: %s", group)
         query = '''
-        query ($urlname: String!) {
-          groupByUrlname(urlname: $urlname) {
-            id,
-            name,
-            timezone,
-            urlname,
-            upcomingEvents(input: {first: 24}) {
-              count
-              pageInfo {
-                endCursor
-              }
-              edges {
-                node {
-                  id,
+          query ($urlname: String!) {
+            groupByUrlname(urlname: $urlname) {
+              id
+              name
+              timezone
+              urlname
+              events(first: 24, status: ACTIVE) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                edges {
+                  node {
+                    id
+                    title
+                    dateTime
+                    endTime
+                    description
+                    duration
+                    eventUrl
+                    eventType
+                    venues {
+                      id
+                      name
+                      address
+                      city
+                      state
+                      postalCode
+                      country
+                      lat
+                      lon
+                    }
+                  }
                 }
               }
-            },
+            }
           }
-        }'''
+        '''
         variables = {
-            "urlname": f"{group}"
+            "urlname": group
         }
 
-        resp = self._get_graphql(query,
-                                 variables)
+        resp = self._get_graphql(query, variables)
+
         if resp is None:
             return resp
 
@@ -737,8 +710,8 @@ def process_event(event_status, notify_type, no_later_than, event, meetings, ema
         else:
             text += f"\n{location}"
 
-    if event.going:
-        text += f"\n{event.going} people are planning to attend"
+#    if event.going:
+#        text += f"\n{event.going} people are planning to attend"
 
     if whats_updated:
         text += f"\nUpdated info: {', '.join(whats_updated)}"
@@ -756,10 +729,10 @@ def process_event(event_status, notify_type, no_later_than, event, meetings, ema
         if url:
             text_adds.append(f'<a href="{url}">{location}</a>')
         else:
-            text.adds.append(location)
+            text_adds.append(location)
 
-    if event.going:
-        text_adds.append(f"{event.going} people are planning to attend")
+#    if event.going:
+#        text_adds.append(f"{event.going} people are planning to attend")
     text = (
         f'<dt>{event.meeting_day} '
         'from '
@@ -843,10 +816,7 @@ def process(options, config, sendmail):
 
         notify_events = []
 
-        for event_id in group.upcoming_events():
-            event = meetup_api.get_event(group, event_id)
-            if not event:
-                continue
+        for event in group.upcoming_events():
             # Meeting provides info on events that are happening
             if event.datetime < no_earlier_than:
                 continue
