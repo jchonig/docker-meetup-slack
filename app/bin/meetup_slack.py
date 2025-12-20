@@ -641,9 +641,12 @@ def notify_slack(options, slack, group, meetings):
             f"{len(attachments)} "
             f"{notify_type.get('prefix', '')} "
             f'{"event" if len(attachments) == 1 else "events"} for '
-            f"<{MEETUP_URL}/{group.get('meetup')}|{group.get('name')}> "
-            f"{notify_type.get('suffix', '')}:"
+            f"<{MEETUP_URL}/{group.get('meetup')}|{group.get('name')}>"
             )
+        if 'suffix' in notify_type:
+            msg_text += ' ' + notify_type['suffix']
+        else:
+            msg_text += ':'
 
         logging.debug("SENDING: %s",
                       json.dumps({
