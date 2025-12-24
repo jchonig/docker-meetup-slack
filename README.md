@@ -64,7 +64,62 @@ services:
 
 # Configuration
 
-Until the configuration is documented, here is sample.
+## E-mail parameters
+
+  + fromaddr - Address used in From: fields
+  + server - SMTP server
+  + username - Username to authenticate to server, if required
+  + passowrd - Password to authenticate to server, if required
+
+## Notification types
+
+  + week - Send on Sunday at 6:00PM
+  + tomorrow - Send day before at 6:00PM
+  + today - Sent in the morning at 8:00AM
+  + hour - Sent an hour before
+  + updated - Meeting has been updated
+  + new - Meeting was created
+
+## Meetups
+
+  + name - Arbitraty name
+  + meetup - Meetup name for meetup group
+  + meetup_key - Meetup API key to authenticate
+  + slack_key - Slack API key to authenticate
+  + slack_channel - Channel to receive posts.  Meetup must be invited to this channel
+  + email - Email address to receive reminders
+  + email_types - List of notify types (see above)
+
+### MailChimp
+
+This allowas sending e-mails via MailChimp campaigns
+
+  + api_key - The mailchimp API key
+  + types - A list of types (see above)
+  + template_id - API id of template to replicate
+  + template_web_id - Web id of template to replicate
+  + test_emails -A list of  E-mail to use instead of audience in test mode
+  + recipients - Identifies the audience
+    + list_id - API id of list to replicate - or -
+	+ list_web_id - Web id of template to replicate
+	+ saved_segment_id - Web/API ID of saved segement
+
+#### Setup
+
+Create a campaign with a simple HTML body with the placeholder
+`{{BODY}}` that will be replaced by the list of events.
+
+Find the campaign ID from the URL and provide this as the
+`template_web_id`.
+
+Create an Audience and get the list ID from the URL and provide this
+as the `list_web_id`.
+
+Narrow to a Segmeent by providing the `saved_segment_id` from the URL.
+
+If you know the API ID's of the above, you can specify them directly.
+
+## Example
 
 ```yaml
 ---
@@ -81,7 +136,17 @@ meetups:
   slack_channel: "#general"
   email: groupone.email@gmail.com
   email_types:
-  - tomorrow
+    - tomorrow
+  mailchimp:
+    api_key: <MAILCHIMP_API_KEY>
+    template_web_id: <MAILCHIMP_TEMPLATE_WEB_ID>
+    test_toaddr: user1@gmail.com
+    types:
+      - tomorrow
+    recipients:
+      list_web_id: <WEB_ID_OF_LIST>
+      segment_opts:
+        saved_segment_id: <WEB_ID_OF_SEGMENT>
 - name: Meetup Group Two
   meetup: Meetup-Group-Two-Community-Meetup
   meetup_key: MEETUP_KEY_TWO

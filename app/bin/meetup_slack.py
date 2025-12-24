@@ -573,6 +573,194 @@ def notify_exception(config, sendmail, exception):
     except OSError as error:
         logging.warning("Sending e-mail: %s", error)
 
+class MailChimp:
+    """ Interact with MailChimp """
+
+    import mailchimp_marketing
+    import mailchimp_marketing.api_client
+
+    def __init__(self, options, config):
+        self._options = options
+        self._group = config
+        self._config = self._group.get('mailchimp')
+        self._clientp = None
+
+    @property
+    def _client(self):
+        """ Login to client and return handle """
+
+        if self._clientp:
+            return self._clientp
+
+        # Authenticate to Mailchimp
+        self._clientp = self.mailchimp_marketing.Client()
+        self._clientp.set_config({
+            "api_key": self._config.get("api_key"),
+            "server": self._config.get("api_key").split("-")[-1]
+        })
+        try:
+            response = self._clientp.ping.get()
+            logging.debug("MAILCHIMP: Authenticated to Mailchimp: %s", response)
+        except self.mailchimp_marketing.api_client.ApiClientError as error:
+            logging.error("MAILCHIMP: Authenticating to Mailchimp: %s", error.text)
+            return None
+
+        return self._clientp
+
+    def lookup_campaign_id(self, web_id):
+        """ Lookup campaign_id from web_id """
+
+        response = self._client.campaigns.list(
+            status="save",
+            count=100,
+            sort_field="create_time",
+            sort_dir="DESC"  # Most recent first
+        )
+        for campaign in response.get('campaigns', []):
+            if int(campaign["web_id"]) == web_id:
+                return campaign["id"]
+        else:
+            logging.warning("MAILCHIMP: No campaign found with web_id: %d", web_id)
+            return None
+
+    def lookup_list_id(self, web_id):
+        """ Lookup list_id from web_id """
+
+        response = self._client.lists.get_all_lists(count=100)
+        for lst in response.get('lists', []):
+            logging.debug("MAILCHIMP: list %s", pprint.pformat(lst))
+            if int(lst["web_id"]) == web_id:
+                return lst["id"]
+        else:
+            logging.warning("MAILCHIMP: No list found with web_id: %d", web_id)
+            return None
+
+    def lookup_segment_id(self, list_id, web_id):
+        """ Lookup saved_segment_id from web_id """
+
+        response = self._client.lists.list_segments(
+            count=100,
+            list_id=list_id
+        )
+        for segment in response.get('segments', []):
+            logging.debug("MAILCHIMP: segment %s", pprint.pformat(segment))
+            if 'web_id' in segment and  int(segment["web_id"]) == web_id:
+                return segment["id"]
+        else:
+            logging.warning("MAILCHIMP: No segment found with web_id: %d", web_id)
+            return None
+
+    def notify(self, meetings):
+        """ Send an e-mail with MailChimp """
+
+        if not self._config:
+            return
+
+        requested_types = self._config.get('types', [])
+        if requested_types:
+            notify_types = {}
+            for key, value in NOTIFY_TYPES.items():
+                if key in requested_types and key in meetings:
+                    notify_types[key] = value
+        else:
+            notify_types = NOTIFY_TYPES
+
+        logging.info("  MAILCHIMP types: %s",
+                     ",".join(notify_types.keys()))
+
+        for notify_type_name, notify_type in notify_types.items():
+            attachments = meetings.get(notify_type_name)
+            if not attachments:
+                continue
+
+            logging.info("MAILCHIMP:    TYPE %s: attachments: %d",
+                         notify_type_name,
+                         len(attachments))
+
+            subject = (
+                f'There {"is" if len(attachments) == 1 else "are"} '
+                f'{len(attachments)} '
+                f'{notify_type.get("prefix", "")} '
+                f'{"event" if len(attachments) == 1 else "events"} for '
+                f'{self._group.get("name")} '
+                f'{notify_type.get("suffix", "")}'
+            )
+
+            body = []
+            body.append("<div>")
+            body.append(f'<h3>Events for'
+                        f' <a href="{MEETUP_URL}/{self._group["meetup"]}">{self._group["name"]}</a></h3>')
+            body.append("<dl>")
+            for meeting in meetings.get(notify_type_name):
+                body.append(str(meeting))
+                body.append("</dl>")
+                body.append("</div>")
+
+            try:
+                if 'template_web_id' in self._config:
+                    self._config['template_id'] = self.lookup_campaign_id(int(self._config["template_web_id"]))
+                template_id = self._config['template_id']
+                if not template_id:
+                    continue
+
+                replicated = self._client.campaigns.replicate(template_id)
+                logging.debug("MAILCHIMP: Replicated: %s", pprint.pformat(replicated))
+                campaign_id = replicated["id"]
+
+                content = self._client.campaigns.get_content(campaign_id)
+                if "{{BODY}}" in content["html"]:
+                    html = content["html"].replace("{{BODY}}", ''.join(body))
+                else:
+                    logging.error("MAILCHIMP: {{BODY}} placeholder not found in template")
+                    continue
+                self._client.campaigns.set_content(campaign_id, {"html": html})
+
+                # Lookup recipients before test to make sure we have them correct
+                recipients = self._config.get("recipients")
+                if 'list_web_id' in recipients:
+                    recipients['list_id'] = self.lookup_list_id(recipients.pop('list_web_id'))
+                logging.info("MAILCHIMP Sending to: %s", pprint.pformat(recipients))
+
+                if self._options.test:
+                    self._client.campaigns.update(campaign_id, {
+                        "settings": {
+                            "subject_line": subject
+                        }
+                    })
+                    response = self._client.campaigns.send_test_email(
+                        campaign_id,
+                        {
+                            "test_emails": self._config.get("test_emails"),
+                            "send_type": "html",
+                        },
+                    )
+                    logging.info("MAILCHIMP: Sending test e-mail: %s", response)
+                else:
+                    self._client.campaigns.update(campaign_id, {
+                        "recipients": recipients,
+                        "settings": {
+                            "subject_line": subject
+                        }
+                    })
+                    response = self._client.campaigns.send(campaign_id)
+                    logging.info("MAILCHIMP: Sending campaign: %s", response)
+            except KeyError as error:
+                logging.error("MAILCHIMP: Config error: %s", error)
+            except self.mailchimp_marketing.api_client.ApiClientError as error:
+                logging.error("MAILCHIMP: Sending campaign: %s", error.text)
+            else:
+                # Success, wait before deleting campaign
+                logging.info("MAILCHIMP: Waiting for campaign to run")
+                time.sleep(10)
+            finally:
+                # Cleanup our campaign
+                if campaign_id:
+                    logging.info("MAILCHIMP: Removing campaign")
+                    try:
+                        response = self._client.campaigns.remove(campaign_id)
+                    except self.mailchimp_marketing.api_client.ApiClientError as error:
+                        logging.error("MAILCHIMP: Removing campaign: %s", error.text)
+
 def notify_email(sendmail, group, meetings):
     """ Send e-mail notification """
 
@@ -838,6 +1026,8 @@ def process(options, config, sendmail):
         notify_slack(options, slack, config_group, meetings)
         if sendmail and config_group.get('email'):
             notify_email(sendmail, config_group, emails)
+        if config_group.get('mailchimp'):
+            MailChimp(options, config_group).notify(emails)
 
     # Write status DB
     if options.save:
