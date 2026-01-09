@@ -423,7 +423,10 @@ class Meetup():
             except requests.exceptions.ConnectionError:
                 last_error = 'Connection Error making query'
             except requests.exceptions.HTTPError as error:
-                last_error = f"HTTP Error: {json.dumps(error.response.json(), indent=4)}"
+                try:
+                    last_error = f"HTTP Error: {json.dumps(error.response.json(), indent=4)}"
+                except requests.exceptions.JSONDecodeError:
+                    last_error = f"HTTP Error: {error.response.text}"
                 break
             time.sleep(5)
 
