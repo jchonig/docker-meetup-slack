@@ -489,7 +489,7 @@ class Meetup():
 
         try:
             return Group(resp['data']['groupByUrlname'])
-        except KeyError:
+        except (KeyError, TypeError):
             return None
 
 class Sendmail():
