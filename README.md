@@ -1,6 +1,8 @@
 # docker-meetup-slack
 A container to post reminders about Meetup events in slack channels.
 
+Image hosted at: `ghcr.io/ghcr.io/jchonig/meetup-slack`
+
 # Usage
 
 ## docker
@@ -13,7 +15,7 @@ docker create \
   -e TZ=Europe/London \
   -v </path/to/appdata/config>:/config \
   --restart unless-stopped \
-  jchonig/meetup-slack
+  ghcr.io/jchonig/meetup-slack
 ```
 
 ### docker-compose
@@ -25,7 +27,7 @@ Compatible with docker-compose v2 schemas.
 version: "2"
 services:
   meetup-slack:
-    image: jchonig/meetup-slack
+    image: ghcr.io/jchonig/meetup-slack
     container_name: meetup-slack
     environment:
       - PUID=1000

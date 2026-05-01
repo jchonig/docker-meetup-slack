@@ -1,0 +1,573 @@
+docker build -t meetup-slack:development .
+[1A[1B[0G[?25l[+] Building 0.0s (0/1)                                                                                                                  docker:desktop-linux
+[?25h[1A[0G[?25l[+] Building 0.2s (1/2)                                                                                                                  docker:desktop-linux
+[34m => [internal] load build definition from Dockerfile                                                                                                     0.0s
+[0m[34m => => transferring dockerfile: 710B                                                                                                                     0.0s
+[0m => [internal] load metadata for ghcr.io/linuxserver/baseimage-alpine:3.22                                                                               0.1s
+[?25h[1A[1A[1A[1A[0G[?25l[+] Building 0.3s (1/2)                                                                                                                  docker:desktop-linux
+[34m => [internal] load build definition from Dockerfile                                                                                                     0.0s
+[0m[34m => => transferring dockerfile: 710B                                                                                                                     0.0s
+[0m => [internal] load metadata for ghcr.io/linuxserver/baseimage-alpine:3.22                                                                               0.3s
+[?25h[1A[1A[1A[1A[0G[?25l[+] Building 0.4s (2/2)                                                                                                                  docker:desktop-linux
+[34m => [internal] load build definition from Dockerfile                                                                                                     0.0s
+[0m[34m => => transferring dockerfile: 710B                                                                                                                     0.0s
+[0m[34m => [internal] load metadata for ghcr.io/linuxserver/baseimage-alpine:3.22                                                                               0.4s
+[0m[?25h[1A[1A[1A[1A[0G[?25l[+] Building 0.5s (11/11) FINISHED                                                                                                       docker:desktop-linux
+[34m => [internal] load build definition from Dockerfile                                                                                                     0.0s
+[0m[34m => => transferring dockerfile: 710B                                                                                                                     0.0s
+[0m[34m => [internal] load metadata for ghcr.io/linuxserver/baseimage-alpine:3.22                                                                               0.4s
+[0m[34m => [internal] load .dockerignore                                                                                                                        0.0s
+[0m[34m => => transferring context: 80B                                                                                                                         0.0s
+[0m[34m => [1/6] FROM ghcr.io/linuxserver/baseimage-alpine:3.22@sha256:2880657e7cea28faf4221b07ffc1e57440e15a455d04c460ebe48219ed103d65                         0.0s
+[0m[34m => [internal] load build context                                                                                                                        0.0s
+[0m[34m => => transferring context: 38.37kB                                                                                                                     0.0s
+[0m[34m => CACHED [2/6] COPY requirements /                                                                                                                     0.0s
+[0m[34m => CACHED [3/6] RUN  echo "*** Install build dependencies ***" &&  apk add --no-cache --virtual .build-deps py3-pip &&  echo "*** Install required pac  0.0s
+[0m[34m => CACHED [4/6] COPY root /                                                                                                                             0.0s
+[0m[34m => [5/6] COPY app /app                                                                                                                                  0.0s
+[0m[34m => [6/6] WORKDIR /config                                                                                                                                0.0s
+[0m[34m => exporting to image                                                                                                                                   0.0s
+[0m[34m => => exporting layers                                                                                                                                  0.0s
+[0m[34m => => writing image sha256:a84fc96fbd044b0ae8c52919fa5b5c6d405bef89ef03c21db343cb80025dec10                                                             0.0s
+[0m[34m => => naming to docker.io/library/meetup-slack:development                                                                                              0.0s
+[0m[?25h[1m
+What's next:[0m
+    View a summary of image vulnerabilities and recommendations → [36mdocker scout quickview [0m
+docker run -v /Users/jch/Projects/Containers/docker-meetup-slack/config:/config -e TZ=America/New_York -it meetup-slack:development /usr/bin/with-contenv /app/bin/meetup_slack -d --test
+[migrations] started
+[migrations] no migrations found
+usermod: no changes
+───────────────────────────────────────
+  _____ __ __ _____ _____ _____ _____ 
+ |     |  |  |   __|_   _|     |     |
+ |   --|  |  |__   | | | |  |  | | | |
+ |_____|_____|_____| |_| |_____|_|_|_|
+       _____ __ __ _ __    ____  
+      | __  |  |  | |  |  |    \ 
+      | __ -|  |  | |  |__|  |  |
+      |_____|_____|_|_____|____/ 
+
+  Based on images from linuxserver.io
+───────────────────────────────────────
+
+To support LSIO projects visit:
+https://www.linuxserver.io/donate/
+
+───────────────────────────────────────
+GID/UID
+───────────────────────────────────────
+
+User UID:    911
+User GID:    911
+───────────────────────────────────────
+Environment /etc/s6-overlay/s6-rc.d/init-meetup-slack-config/run:
+    PUID=
+    PGID=
+    TZ=America/New_York
+[custom-init] No custom files found, skipping...
+crond[147]: crond (busybox 1.37.0) started, log level 7
+[ls.io-init] done.
+Loading /config/meetup_slack.db: [Errno 2] No such file or directory: '/config/meetup_slack.db'
+Getting group from: The-Things-Network-Ithaca-Community-Meetup
+Query: {"urlname": "The-Things-Network-Ithaca-Community-Meetup"}
+Starting new HTTPS connection (1): api.meetup.com:443
+https://api.meetup.com:443 "POST /gql-ext HTTP/1.1" 200 1104
+Query Returned: {
+    "data": {
+        "groupByUrlname": {
+            "id": "19973259",
+            "name": "The Things Network Ithaca Community Meetup",
+            "timezone": "America/New_York",
+            "urlname": "The-Things-Network-Ithaca-Community-Meetup",
+            "events": {
+                "pageInfo": {
+                    "hasNextPage": false,
+                    "endCursor": "MzEyNTUzMzYyOjE3NjY2MDI4MDAwMDA="
+                },
+                "edges": [
+                    {
+                        "node": {
+                            "id": "312553362",
+                            "title": "Test",
+                            "dateTime": "2025-12-24T14:00:00-05:00",
+                            "endTime": "2025-12-24T17:00:00-05:00",
+                            "description": "We'll meet to work informally on IoT/LoRaWAN projects and kibitz.\n\nBring stuff to your computer that you want to work on, or bring questions, or just drop in to see what we're doing. Depending on who's there and what's in the queue, we may have impromptu seminars on LoRaWAN or The Things Network.\n\nRemote attendance is possible. Contact Terry Moore for more information.",
+                            "duration": "PT3H",
+                            "eventUrl": "https://www.meetup.com/the-things-network-ithaca-community-meetup/events/312553362/",
+                            "eventType": "PHYSICAL",
+                            "venues": [
+                                {
+                                    "id": "24582056",
+                                    "name": "MCCI",
+                                    "address": "3520 Krums Corners Road",
+                                    "city": "Ithaca",
+                                    "state": "NY",
+                                    "postalCode": "",
+                                    "country": "us",
+                                    "lat": 42.493996,
+                                    "lon": -76.57356
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
+Processing The Things Network Ithaca Community Meetup for hour from 2025-12-23 19:59:45.370212-05:00 to 2025-12-23 01:00:00-04:56
+	Test 2025-12-24 14:00:00-05:00
+		new hour 
+  SLACK channel #test
+    TYPE new: attachments: 1
+SENDING: {
+    "text": "There is 1 new event for <https://www.meetup.com/The-Things-Network-Ithaca-Community-Meetup|The Things Network Ithaca>:",
+    "unfurl_links": false,
+    "attachments": [
+        {
+            "color": "#e0393e",
+            "title": "Test",
+            "title_link": "https://www.meetup.com/the-things-network-ithaca-community-meetup/events/312553362/",
+            "text": "<!date^1766602800^{date_short_pretty}|Wednesday Dec 24> from <!date^1766602800^{time}|14:00 PM> to <!date^1766613600^{time}|17:00 PM>\nMCCI; 3520 Krums Corners Road; Ithaca, NY  US"
+        }
+    ]
+}
+Sending a request - url: https://slack.com/api/chat.postMessage, query_params: {}, body_params: {}, files: {}, json_body: {'channel': '#test', 'text': 'There is 1 new event for <https://www.meetup.com/The-Things-Network-Ithaca-Community-Meetup|The Things Network Ithaca>:', 'attachments': [{'color': '#e0393e', 'title': 'Test', 'title_link': 'https://www.meetup.com/the-things-network-ithaca-community-meetup/events/312553362/', 'text': '<!date^1766602800^{date_short_pretty}|Wednesday Dec 24> from <!date^1766602800^{time}|14:00 PM> to <!date^1766613600^{time}|17:00 PM>\nMCCI; 3520 Krums Corners Road; Ithaca, NY  US'}], 'icon_emoji': ':meetup:'}, headers: {'Content-Type': 'application/json;charset=utf-8', 'Authorization': '(redacted)', 'User-Agent': 'Python/3.12.12 slackclient/3.39.0 Linux/6.12.54-linuxkit'}
+Received the following response - status: 200, headers: {'date': 'Wed, 24 Dec 2025 00:59:45 GMT', 'server': 'Apache', 'vary': 'Accept-Encoding', 'x-slack-req-id': 'c52e7fe1086efb086c76dafd092a17af', 'x-content-type-options': 'nosniff', 'x-xss-protection': '0', 'pragma': 'no-cache', 'cache-control': 'private, no-cache, no-store, must-revalidate', 'expires': 'Sat, 26 Jul 1997 05:00:00 GMT', 'content-type': 'application/json; charset=utf-8', 'x-accepted-oauth-scopes': 'chat:write', 'x-oauth-scopes': 'chat:write', 'access-control-expose-headers': 'x-slack-req-id, retry-after', 'access-control-allow-headers': 'slack-route, x-slack-version-ts, x-b3-traceid, x-b3-spanid, x-b3-parentspanid, x-b3-sampled, x-b3-flags', 'strict-transport-security': 'max-age=31536000; includeSubDomains; preload', 'referrer-policy': 'no-referrer', 'x-slack-unique-id': 'aUs7ATVXgZC0dKxxkP6obQAAECM', 'x-slack-backend': 'r', 'access-control-allow-origin': '*', 'content-length': '1431', 'via': '1.1 slack-prod.tinyspeck.com, envoy-www-iad-bcpbawfd,envoy-edge-iad-idhcbsgo', 'x-envoy-attempt-count': '1', 'x-envoy-upstream-service-time': '79', 'x-backend': 'api_normal', 'x-server': 'slack-www-hhvm-api-iad-hl3cw6ecwz4d', 'x-slack-shared-secret-outcome': 'no-match', 'x-edge-backend': 'envoy-www', 'timing-allow-origin': '*', 'alt-svc': 'h3=":443"; ma=2592000, h3-29=":443"; ma=2592000, quic=":443"; ma=2592000', 'x-geoname-id': 'notfound', 'x-slack-edge-shared-secret-outcome': 'no-match', 'connection': 'close'}, body: {"ok":true,"channel":"C049WJJ3E86","ts":"1766537985.577309","message":{"user":"U017U8MPA4U","type":"message","ts":"1766537985.577309","bot_id":"B017N98C6G3","app_id":"A017LMG2DHB","text":"There is 1 new event for <https:\/\/www.meetup.com\/The-Things-Network-Ithaca-Community-Meetup|The Things Network Ithaca>:","team":"T189G0TJP","bot_profile":{"id":"B017N98C6G3","app_id":"A017LMG2DHB","user_id":"U017U8MPA4U","name":"Meetup Reminders NYC","icons":{"image_36":"https:\/\/a.slack-edge.com\/80588\/img\/plugins\/app\/bot_36.png","image_48":"https:\/\/a.slack-edge.com\/80588\/img\/plugins\/app\/bot_48.png","image_72":"https:\/\/a.slack-edge.com\/80588\/img\/plugins\/app\/service_72.png"},"deleted":false,"updated":1595544424,"team_id":"T189G0TJP"},"attachments":[{"id":1,"color":"e0393e","fallback":"Test","text":"<!date^1766602800^{date_short_pretty}|Wednesday Dec 24> from <!date^1766602800^{time}|14:00 PM> to <!date^1766613600^{time}|17:00 PM>\nMCCI; 3520 Krums Corners Road; Ithaca, NY  US","title":"Test","title_link":"https:\/\/www.meetup.com\/the-things-network-ithaca-community-meetup\/events\/312553362\/"}],"blocks":[{"type":"rich_text","block_id":"KiS","elements":[{"type":"rich_text_section","elements":[{"type":"text","text":"There is 1 new event for "},{"type":"link","url":"https:\/\/www.meetup.com\/The-Things-Network-Ithaca-Community-Meetup","text":"The Things Network Ithaca"},{"type":"text","text":":"}]}]}]}}
+DEBUG: Slack response: <slack_sdk.web.slack_response.SlackResponse object at 0xffffad9bdb80>
+  EMAIL to jch@ttni.tech types: new
+    TYPE new: attachments: 1
+MAIL: From: jch@ttni.tech To: jch@ttni.tech Cc:  Subject: There is 1 new event for The Things Network Ithaca 
+SENDMAIL(jch@ttni.tech -> jch@ttni.tech)
+STARTTLS 220: 2.0.0 Ready to start TLS
+LOGIN 235: 2.7.0 Authentication successful
+SENDMAIL: {}
+  MAILCHIMP types: week,tomorrow,today,hour,updated,new
+MAILCHIMP:    TYPE new: attachments: 1
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "GET /3.0/ping HTTP/1.1" 200 60
+MAILCHIMP: Authenticated to Mailchimp: {'health_status': "Everything's Chimpy!"}
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "GET /3.0/campaigns?count=100&status=save&sort_field=create_time&sort_dir=DESC HTTP/1.1" 200 1632
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "POST /3.0/campaigns/4a711f430b/actions/replicate HTTP/1.1" 200 866
+MAILCHIMP: Replicated: {'_links': [{'href': 'https://us14.api.mailchimp.com/3.0/campaigns',
+             'method': 'GET',
+             'rel': 'parent',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Campaigns/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Campaigns/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57',
+             'method': 'GET',
+             'rel': 'self',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Campaigns/Response.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57',
+             'method': 'DELETE',
+             'rel': 'delete'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/actions/send',
+             'method': 'POST',
+             'rel': 'send'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/actions/cancel-send',
+             'method': 'POST',
+             'rel': 'cancel_send'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/feedback',
+             'method': 'GET',
+             'rel': 'feedback',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Campaigns/Feedback/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/content',
+             'method': 'GET',
+             'rel': 'content',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Campaigns/Content/Response.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/send-checklist',
+             'method': 'GET',
+             'rel': 'send_checklist',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Campaigns/Checklist/Response.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/actions/pause',
+             'method': 'POST',
+             'rel': 'pause'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/actions/resume',
+             'method': 'POST',
+             'rel': 'resume'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/actions/replicate',
+             'method': 'POST',
+             'rel': 'replicate'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/campaigns/2d0dc19b57/actions/create-resend',
+             'method': 'POST',
+             'rel': 'create_resend'}],
+ 'archive_url': 'http://eepurl.com/jvnX4A',
+ 'content_type': 'html',
+ 'create_time': '2025-12-24T00:59:48+00:00',
+ 'delivery_status': {'enabled': False},
+ 'emails_sent': 0,
+ 'id': '2d0dc19b57',
+ 'long_archive_url': 'https://us14.campaign-archive.com/?u=d7349e1cdf03ad115ff18f769&id=2d0dc19b57',
+ 'needs_block_refresh': False,
+ 'recipients': {'list_id': '966c1f4151',
+                'list_name': 'TTN NYC Newsletter',
+                'recipient_count': 1379,
+                'segment_text': ''},
+ 'resendable': False,
+ 'send_time': '',
+ 'settings': {'authenticate': True,
+              'auto_footer': False,
+              'auto_tweet': False,
+              'drag_and_drop': False,
+              'fb_comments': True,
+              'folder_id': '',
+              'from_name': 'The Things Network New York',
+              'inline_css': False,
+              'reply_to': 'terry@thethings.nyc',
+              'subject_line': 'Meeting reminder',
+              'template_id': 0,
+              'timewarp': False,
+              'title': 'Meeting reminder (copy 59)',
+              'to_name': '',
+              'use_conversation': False},
+ 'status': 'save',
+ 'tracking': {'clicktale': '',
+              'ecomm360': False,
+              'goal_tracking': False,
+              'google_analytics': '',
+              'html_clicks': True,
+              'opens': True,
+              'text_clicks': False},
+ 'type': 'regular',
+ 'web_id': 10343317}
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "GET /3.0/campaigns/2d0dc19b57/content HTTP/1.1" 200 1010
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "PUT /3.0/campaigns/2d0dc19b57/content HTTP/1.1" 200 1103
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "GET /3.0/lists?count=100 HTTP/1.1" 200 1340
+MAILCHIMP: list {'_links': [{'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151',
+             'method': 'GET',
+             'rel': 'self',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Response.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists',
+             'method': 'GET',
+             'rel': 'parent',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151',
+             'method': 'PATCH',
+             'rel': 'update',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/PATCH.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Response.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151',
+             'method': 'POST',
+             'rel': 'batch-sub-unsub-members',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/BatchPOST.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/BatchPOST-Response.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151',
+             'method': 'DELETE',
+             'rel': 'delete'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/abuse-reports',
+             'method': 'GET',
+             'rel': 'abuse-reports',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/Abuse/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Abuse/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/activity',
+             'method': 'GET',
+             'rel': 'activity',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Activity/Response.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/clients',
+             'method': 'GET',
+             'rel': 'clients',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Clients/Response.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/growth-history',
+             'method': 'GET',
+             'rel': 'growth-history',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/Growth/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Growth/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/interest-categories',
+             'method': 'GET',
+             'rel': 'interest-categories',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/InterestCategories/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/InterestCategories/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/members',
+             'method': 'GET',
+             'rel': 'members',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/Members/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Members/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/merge-fields',
+             'method': 'GET',
+             'rel': 'merge-fields',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/MergeFields/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/MergeFields/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/segments',
+             'method': 'GET',
+             'rel': 'segments',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/Segments/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Segments/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/webhooks',
+             'method': 'GET',
+             'rel': 'webhooks',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/Webhooks/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Webhooks/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/signup-forms',
+             'method': 'GET',
+             'rel': 'signup-forms',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/SignupForms/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/SignupForms/CollectionResponse.json'},
+            {'href': 'https://us14.api.mailchimp.com/3.0/lists/966c1f4151/locations',
+             'method': 'GET',
+             'rel': 'locations',
+             'schema': 'https://us14.api.mailchimp.com/schema/3.0/Paths/Lists/Locations/Collection.json',
+             'targetSchema': 'https://us14.api.mailchimp.com/schema/3.0/Definitions/Lists/Locations/CollectionResponse.json'}],
+ 'beamer_address': 'us14-0536a5b913-8f0bc4e4c7@inbound.mailchimp.com',
+ 'campaign_defaults': {'from_email': 'terry@thethings.nyc',
+                       'from_name': 'The Things Network New York',
+                       'language': 'en',
+                       'subject': ''},
+ 'contact': {'address1': '1140 Avenue of the Americas 9Fl',
+             'address2': '',
+             'city': 'New York',
+             'company': 'The Things Network New York',
+             'country': 'US',
+             'phone': '',
+             'state': 'NY',
+             'zip': '10036'},
+ 'date_created': '2016-08-23T11:53:33+00:00',
+ 'double_optin': False,
+ 'email_type_option': True,
+ 'has_welcome': False,
+ 'id': '966c1f4151',
+ 'list_rating': 0,
+ 'marketing_permissions': False,
+ 'modules': [],
+ 'name': 'TTN NYC Newsletter',
+ 'notify_on_subscribe': 'cmerck@thethings.nyc',
+ 'notify_on_unsubscribe': 'cmerck@thethings.nyc',
+ 'permission_reminder': 'You are receiving this email because you opted in at '
+                        'our website or one of our meetups.',
+ 'stats': {'avg_sub_rate': 50,
+           'avg_unsub_rate': 2,
+           'campaign_count': 36,
+           'campaign_last_sent': '2025-05-01T03:40:44+00:00',
+           'cleaned_count': 88,
+           'cleaned_count_since_send': 0,
+           'click_rate': 1.9973564400058745,
+           'last_sub_date': '2025-11-19T11:08:08+00:00',
+           'last_unsub_date': '2025-06-01T10:41:39+00:00',
+           'member_count': 1379,
+           'member_count_since_send': 0,
+           'merge_field_count': 2,
+           'open_rate': 30.37156704361874,
+           'target_sub_rate': 5,
+           'unsubscribe_count': 88,
+           'unsubscribe_count_since_send': 0},
+ 'subscribe_url_long': 'https://nyc.us14.list-manage.com/subscribe?u=d7349e1cdf03ad115ff18f769&id=966c1f4151',
+ 'subscribe_url_short': 'http://eepurl.com/c3Jt7L',
+ 'use_archive_bar': True,
+ 'visibility': 'pub',
+ 'web_id': 5581}
+MAILCHIMP Sending to: {'list_id': '966c1f4151', 'segment_opts': {'saved_segment_id': 40189231}}
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "PATCH /3.0/campaigns/2d0dc19b57 HTTP/1.1" 200 906
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "POST /3.0/campaigns/2d0dc19b57/actions/test HTTP/1.1" 204 0
+MAILCHIMP: Sending test e-mail: <Response [204]>
+MAILCHIMP: Waiting for campaign to run
+crond[147]: USER abc pid 173 cmd /app/bin/meetup_slack -l /config/log/meetup_slack.log
+crond[147]: USER root pid 174 cmd run-parts /etc/periodic/15min
+crond[147]: USER root pid 175 cmd run-parts /etc/periodic/hourly
+Error loading shared library libreadline.so.8: Permission denied (needed by /app/bin/meetup_slack)
+Error relocating /app/bin/meetup_slack: unstifle_history: symbol not found
+Error relocating /app/bin/meetup_slack: rl_make_bare_keymap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_bind_key_if_unbound_in_map: symbol not found
+Error relocating /app/bin/meetup_slack: rl_macro_dumper: symbol not found
+Error relocating /app/bin/meetup_slack: previous_history: symbol not found
+Error relocating /app/bin/meetup_slack: rl_vi_end_word: symbol not found
+Error relocating /app/bin/meetup_slack: rl_parse_and_bind: symbol not found
+Error relocating /app/bin/meetup_slack: rl_redisplay: symbol not found
+Error relocating /app/bin/meetup_slack: rl_push_macro_input: symbol not found
+Error relocating /app/bin/meetup_slack: rl_bind_key_in_map: symbol not found
+Error relocating /app/bin/meetup_slack: clear_history: symbol not found
+Error relocating /app/bin/meetup_slack: add_history: symbol not found
+Error relocating /app/bin/meetup_slack: rl_redraw_prompt_last_line: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_completion_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_function_of_keyseq_len: symbol not found
+Error relocating /app/bin/meetup_slack: history_get: symbol not found
+Error relocating /app/bin/meetup_slack: rl_get_keymap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_kill_text: symbol not found
+Error relocating /app/bin/meetup_slack: remove_history: symbol not found
+Error relocating /app/bin/meetup_slack: history_truncate_file: symbol not found
+Error relocating /app/bin/meetup_slack: rl_generic_bind: symbol not found
+Error relocating /app/bin/meetup_slack: rl_read_key: symbol not found
+Error relocating /app/bin/meetup_slack: read_history: symbol not found
+Error relocating /app/bin/meetup_slack: rl_add_defun: symbol not found
+Error relocating /app/bin/meetup_slack: history_expand: symbol not found
+Error relocating /app/bin/meetup_slack: rl_newline: symbol not found
+Error relocating /app/bin/meetup_slack: rl_translate_keyseq: symbol not found
+Error relocating /app/bin/meetup_slack: rl_forced_update_display: symbol not found
+Error relocating /app/bin/meetup_slack: rl_set_timeout: symbol not found
+Error relocating /app/bin/meetup_slack: rl_read_init_file: symbol not found
+Error relocating /app/bin/meetup_slack: rl_insert: symbol not found
+Error relocating /app/bin/meetup_slack: rl_invoking_keyseqs: symbol not found
+Error relocating /app/bin/meetup_slack: append_history: symbol not found
+Error relocating /app/bin/meetup_slack: free_history_entry: symbol not found
+Error relocating /app/bin/meetup_slack: rl_unbind_key_in_map: symbol not found
+Error relocating /app/bin/meetup_slack: rl_set_signals: symbol not found
+Error relocating /app/bin/meetup_slack: readline: symbol not found
+Error relocating /app/bin/meetup_slack: rl_variable_value: symbol not found
+Error relocating /app/bin/meetup_slack: history_set_pos: symbol not found
+Error relocating /app/bin/meetup_slack: rl_unbind_function_in_map: symbol not found
+Error relocating /app/bin/meetup_slack: read_history_range: symbol not found
+Error relocating /app/bin/meetup_slack: history_is_stifled: symbol not found
+Error relocating /app/bin/meetup_slack: rl_menu_complete: symbol not found
+Error relocating /app/bin/meetup_slack: stifle_history: symbol not found
+Error relocating /app/bin/meetup_slack: replace_history_entry: symbol not found
+Error relocating /app/bin/meetup_slack: rl_insert_text: symbol not found
+Error relocating /app/bin/meetup_slack: rl_get_keymap_by_name: symbol not found
+Error relocating /app/bin/meetup_slack: rl_set_screen_size: symbol not found
+Error relocating /app/bin/meetup_slack: rl_clear_signals: symbol not found
+Error relocating /app/bin/meetup_slack: rl_vi_bWord: symbol not found
+Error relocating /app/bin/meetup_slack: rl_get_termcap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_begin_undo_group: symbol not found
+Error relocating /app/bin/meetup_slack: rl_ding: symbol not found
+Error relocating /app/bin/meetup_slack: where_history: symbol not found
+Error relocating /app/bin/meetup_slack: rl_delete_text: symbol not found
+Error relocating /app/bin/meetup_slack: rl_function_of_keyseq: symbol not found
+Error relocating /app/bin/meetup_slack: rl_bind_keyseq: symbol not found
+Error relocating /app/bin/meetup_slack: rl_reset_terminal: symbol not found
+Error relocating /app/bin/meetup_slack: history_tokenize: symbol not found
+Error relocating /app/bin/meetup_slack: rl_forward_word: symbol not found
+Error relocating /app/bin/meetup_slack: rl_copy_text: symbol not found
+Error relocating /app/bin/meetup_slack: rl_function_dumper: symbol not found
+Error relocating /app/bin/meetup_slack: _rl_find_next_mbchar: symbol not found
+Error relocating /app/bin/meetup_slack: rl_vi_insertion_mode: symbol not found
+Error relocating /app/bin/meetup_slack: rl_end_undo_group: symbol not found
+Error relocating /app/bin/meetup_slack: rl_variable_bind: symbol not found
+Error relocating /app/bin/meetup_slack: rl_named_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_initialize: symbol not found
+Error relocating /app/bin/meetup_slack: rl_vi_start_inserting: symbol not found
+Error relocating /app/bin/meetup_slack: rl_complete: symbol not found
+Error relocating /app/bin/meetup_slack: rl_complete_internal: symbol not found
+Error relocating /app/bin/meetup_slack: history_list: symbol not found
+Error relocating /app/bin/meetup_slack: tilde_expand: symbol not found
+Error relocating /app/bin/meetup_slack: rl_funmap_names: symbol not found
+Error relocating /app/bin/meetup_slack: rl_set_keymap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_variable_dumper: symbol not found
+Error relocating /app/bin/meetup_slack: rl_bind_keyseq_in_map: symbol not found
+Error relocating /app/bin/meetup_slack: write_history: symbol not found
+Error relocating /app/bin/meetup_slack: rl_on_new_line: symbol not found
+Error relocating /app/bin/meetup_slack: rl_clear_visible_line: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_matches: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_mode: symbol not found
+Error relocating /app/bin/meetup_slack: rl_add_undo: symbol not found
+Error relocating /app/bin/meetup_slack: rl_cleanup_after_signal: symbol not found
+Error relocating /app/bin/meetup_slack: rl_list_funmap_names: symbol not found
+Error relocating /app/bin/meetup_slack: using_history: symbol not found
+Error relocating /app/bin/meetup_slack: history_get_time: symbol not found
+Error relocating /app/bin/meetup_slack: remove_history_range: symbol not found
+Error relocating /app/bin/meetup_slack: rl_crlf: symbol not found
+Error relocating /app/bin/meetup_slack: rl_trim_arg_from_keyseq: symbol not found
+Error relocating /app/bin/meetup_slack: history_length: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_found_quote: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_type: symbol not found
+Error relocating /app/bin/meetup_slack: rl_point: symbol not found
+Error relocating /app/bin/meetup_slack: history_lines_written_to_file: symbol not found
+Error relocating /app/bin/meetup_slack: history_max_entries: symbol not found
+Error relocating /app/bin/meetup_slack: history_write_timestamps: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_suppress_quote: symbol not found
+Error relocating /app/bin/meetup_slack: rl_basic_word_break_characters: symbol not found
+Error relocating /app/bin/meetup_slack: rl_mark: symbol not found
+Error relocating /app/bin/meetup_slack: rl_directory_rewrite_hook: symbol not found
+Error relocating /app/bin/meetup_slack: rl_emacs_editing_mode: symbol not found
+Error relocating /app/bin/meetup_slack: rl_end: symbol not found
+Error relocating /app/bin/meetup_slack: rl_directory_completion_hook: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completer_word_break_characters: symbol not found
+Error relocating /app/bin/meetup_slack: rl_dispatching: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_completion_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_quoting_desired: symbol not found
+Error relocating /app/bin/meetup_slack: history_search_delimiter_chars: symbol not found
+Error relocating /app/bin/meetup_slack: rl_executing_keyseq: symbol not found
+Error relocating /app/bin/meetup_slack: rl_key_sequence_length: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_dequoting_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_rewrite_hook: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_stat_hook: symbol not found
+Error relocating /app/bin/meetup_slack: rl_tilde_expand: symbol not found
+Error relocating /app/bin/meetup_slack: vi_insertion_keymap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_newline: symbol not found
+Error relocating /app/bin/meetup_slack: rl_vi_editing_mode: symbol not found
+Error relocating /app/bin/meetup_slack: rl_prep_term_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_menu_completion_entry_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_attempted_completion_function: symbol not found
+Error relocating /app/bin/meetup_slack: history_comment_char: symbol not found
+Error relocating /app/bin/meetup_slack: rl_username_completion_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_insert: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_completion_desired: symbol not found
+Error relocating /app/bin/meetup_slack: rl_done: symbol not found
+Error relocating /app/bin/meetup_slack: rl_tab_insert: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_append_character: symbol not found
+Error relocating /app/bin/meetup_slack: rl_sort_completion_matches: symbol not found
+Error relocating /app/bin/meetup_slack: history_lines_read_from_file: symbol not found
+Error relocating /app/bin/meetup_slack: emacs_ctlx_keymap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_deprep_term_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_editing_mode: symbol not found
+Error relocating /app/bin/meetup_slack: tilde_additional_prefixes: symbol not found
+Error relocating /app/bin/meetup_slack: rl_menu_complete: symbol not found
+Error relocating /app/bin/meetup_slack: history_subst_char: symbol not found
+Error relocating /app/bin/meetup_slack: rl_readline_state: symbol not found
+Error relocating /app/bin/meetup_slack: rl_attempted_completion_over: symbol not found
+Error relocating /app/bin/meetup_slack: vi_movement_keymap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_quote_characters: symbol not found
+Error relocating /app/bin/meetup_slack: rl_filename_quoting_function: symbol not found
+Error relocating /app/bin/meetup_slack: history_quotes_inhibit_expansion: symbol not found
+Error relocating /app/bin/meetup_slack: rl_readline_name: symbol not found
+Error relocating /app/bin/meetup_slack: rl_line_buffer: symbol not found
+Error relocating /app/bin/meetup_slack: emacs_meta_keymap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_char_is_quoted_p: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_entry_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_last_func: symbol not found
+Error relocating /app/bin/meetup_slack: rl_ignore_some_completions_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_invoking_key: symbol not found
+Error relocating /app/bin/meetup_slack: rl_instream: symbol not found
+Error relocating /app/bin/meetup_slack: tilde_expansion_preexpansion_hook: symbol not found
+Error relocating /app/bin/meetup_slack: rl_yank_last_arg: symbol not found
+Error relocating /app/bin/meetup_slack: tilde_additional_suffixes: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_suppress_append: symbol not found
+Error relocating /app/bin/meetup_slack: history_inhibit_expansion_function: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completer_quote_characters: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_quote_character: symbol not found
+Error relocating /app/bin/meetup_slack: history_base: symbol not found
+Error relocating /app/bin/meetup_slack: rl_terminal_name: symbol not found
+Error relocating /app/bin/meetup_slack: history_expansion_char: symbol not found
+Error relocating /app/bin/meetup_slack: rl_outstream: symbol not found
+Error relocating /app/bin/meetup_slack: emacs_standard_keymap: symbol not found
+Error relocating /app/bin/meetup_slack: rl_startup_hook: symbol not found
+Error relocating /app/bin/meetup_slack: history_quoting_state: symbol not found
+Error relocating /app/bin/meetup_slack: rl_signal_event_hook: symbol not found
+Error relocating /app/bin/meetup_slack: rl_special_prefixes: symbol not found
+Error relocating /app/bin/meetup_slack: rl_explicit_arg: symbol not found
+Error relocating /app/bin/meetup_slack: rl_num_chars_to_read: symbol not found
+Error relocating /app/bin/meetup_slack: rl_completion_mark_symlink_dirs: symbol not found
+Error relocating /app/bin/meetup_slack: rl_complete: symbol not found
+MAILCHIMP: Removing campaign
+Starting new HTTPS connection (1): us14.api.mailchimp.com:443
+https://us14.api.mailchimp.com:443 "DELETE /3.0/campaigns/2d0dc19b57 HTTP/1.1" 204 0
+Getting group from: The-Things-Network-NYC-Community-Meetup
+Query: {"urlname": "The-Things-Network-NYC-Community-Meetup"}
+Starting new HTTPS connection (1): api.meetup.com:443
+https://api.meetup.com:443 "POST /gql-ext HTTP/1.1" 200 248
+Query Returned: {
+    "data": {
+        "groupByUrlname": {
+            "id": "19846033",
+            "name": "The Things Network NYC Community Meetup",
+            "timezone": "America/New_York",
+            "urlname": "The-Things-Network-NYC-Community-Meetup",
+            "events": {
+                "pageInfo": {
+                    "hasNextPage": false,
+                    "endCursor": null
+                },
+                "edges": []
+            }
+        }
+    }
+}
+Processing The Things Network NYC Community Meetup for hour from 2025-12-23 20:00:04.314747-05:00 to 2025-12-23 01:00:00-04:56
+  SLACK channel #test
+  EMAIL to jch@ttni.tech types: 
+  MAILCHIMP types: week,tomorrow,today,hour,updated,new
+Wrote /config/meetup_slack.db
