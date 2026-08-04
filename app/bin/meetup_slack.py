@@ -488,9 +488,15 @@ class Meetup():
             return resp
 
         try:
-            return Group(resp['data']['groupByUrlname'])
+            group_data = resp['data']['groupByUrlname']
         except (KeyError, TypeError):
             return None
+
+        if group_data is None:
+            logging.warning("Group not found: %s", group)
+            return None
+
+        return Group(group_data)
 
 class Sendmail():
     """ Configuration and e-maill """
